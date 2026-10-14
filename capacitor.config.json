@@ -1,9 +1,0 @@
-{
-  "appId": "com.maxyu.mtreta",
-  "appName": "MTR Ultra",
-  "webDir": "src",
-  "bundledWebRuntime": false,
-  "android": {
-    "allowMixedContent": true
-  }
-}
