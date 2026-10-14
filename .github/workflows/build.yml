@@ -1,0 +1,246 @@
+name: Deploy & Build MTR Metro Ultra 2.0 APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout MTR-V2 Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 20 & Python 3
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Sync Base Assets from MTRMetroApp & Upgrade to Ultra 2.0
+        run: |
+          if [ ! -f "src/js/v2_enhance.js" ]; then
+            echo "Bootstrapping MTR Metro Ultra 2.0 files..."
+            git clone https://github.com/maxyu725/MTRMetroApp.git /tmp/mtr_v1 || git clone https://github.com/maxyu725/MTR_Metro_App.git /tmp/mtr_v1 || true
+            mkdir -p src/css src/js src/pages custom_icons
+            if [ -d "/tmp/mtr_v1/src" ]; then
+              cp -rf /tmp/mtr_v1/src/* src/
+            fi
+            if [ -d "/tmp/mtr_v1/custom_icons" ]; then
+              cp -rf /tmp/mtr_v1/custom_icons/* custom_icons/
+            fi
+
+            # Inject Cyber-Glass 2.0 Theme & Multi-Mode Upgrade Pack
+            cat << 'CSS_EOF' >> src/css/style.css
+          /* === MTR Metro Ultra 2.0 Cyber-Glass & Theme Upgrade === */
+          :root {
+            --bg-color: #070A12;
+            --card-glass: rgba(20, 28, 46, 0.78);
+            --glass-border: rgba(255, 255, 255, 0.12);
+            --accent-color: #0EA5E9;
+          }
+          body.light-theme {
+            --bg-color: #F1F5F9;
+            --text-color: #0F172A;
+            --sub-text: #475569;
+            --border-color: rgba(15, 23, 42, 0.12);
+            --card-glass: rgba(255, 255, 255, 0.9);
+            --glass-border: rgba(15, 23, 42, 0.1);
+          }
+          #pivot-content { padding-bottom: 72px; }
+          .live-tile { border-radius: 18px; border: 1px solid rgba(255,255,255,0.18); box-shadow: 0 10px 25px rgba(0,0,0,0.45); }
+          .status-banner, .search-item, .status-item { border-radius: 14px; background: var(--card-glass) !important; backdrop-filter: blur(16px); border: 1px solid var(--glass-border); }
+          #route-drawer, #route-result { background: var(--card-glass) !important; backdrop-filter: blur(22px); border-radius: 22px 22px 0 0; }
+          #ultra-bottom-nav {
+            position: fixed; bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+            width: calc(100% - 32px); max-width: 440px; height: 58px; background: rgba(13, 18, 30, 0.88);
+            backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 30px;
+            display: flex; justify-content: space-around; align-items: center; z-index: 3000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.55);
+          }
+          body.light-theme #ultra-bottom-nav { background: rgba(255, 255, 255, 0.92); }
+          .u-nav-btn { flex: 1; text-align: center; font-size: 0.72rem; font-weight: 700; color: var(--sub-text); cursor: pointer; padding: 8px 0; border-radius: 24px; transition: all 0.2s; }
+          .u-nav-btn.active { color: #fff; background: linear-gradient(135deg, #0EA5E9, #2563EB); }
+          .u-top-tools { position: fixed; top: max(12px, env(safe-area-inset-top)); right: 18px; z-index: 2500; display: flex; gap: 8px; }
+          .u-pill-btn { background: var(--card-glass); border: 1px solid var(--glass-border); color: var(--text-color); border-radius: 18px; padding: 5px 11px; font-size: 0.75rem; font-weight: 700; cursor: pointer; backdrop-filter: blur(12px); }
+          .u-search-bar { margin: 0 0 12px 0; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--card-glass); color: var(--text-color); width: 100%; font-size: 0.95rem; outline: none; }
+          .u-fare-pills { display: flex; gap: 6px; margin-top: 8px; overflow-x: auto; }
+          .u-fare-pill { padding: 4px 9px; border-radius: 8px; background: rgba(255,255,255,0.08); font-size: 0.72rem; cursor: pointer; white-space: nowrap; }
+          .u-fare-pill.active { background: rgba(76, 217, 100, 0.22); color: #4cd964; font-weight: 700; border: 1px solid #4cd964; }
+          CSS_EOF
+
+            cat << 'JS_EOF' > src/js/v2_enhance.js
+          // === MTR Metro Ultra 2.0 Enhancement Module ===
+          (function() {
+            function initUltra() {
+              // 1. Top Theme & GPS Bar
+              const topTools = document.createElement('div');
+              topTools.className = 'u-top-tools';
+              topTools.innerHTML = '<button class="u-pill-btn" id="u-gps-btn">📍 最近車站</button><button class="u-pill-btn" id="u-theme-btn">☀️ 主題</button>';
+              document.body.appendChild(topTools);
+
+              // 2. Floating Glass Bottom Nav
+              const bNav = document.createElement('div');
+              bNav.id = 'ultra-bottom-nav';
+              bNav.innerHTML = [
+                { i: 0, l: '🏠 首頁看板' },
+                { i: 1, l: '🧭 車站百科' },
+                { i: 2, l: '🗺️ 路線規劃' },
+                { i: 3, l: '⚡ 車務天氣' }
+              ].map(t => `<div class="u-nav-btn ${t.i===0?'active':''}" data-idx="${t.i}">${t.l}</div>`).join('');
+              document.body.appendChild(bNav);
+
+              bNav.addEventListener('click', (e) => {
+                const btn = e.target.closest('.u-nav-btn');
+                if (!btn || !window.AppNav) return;
+                window.AppNav.goTo(Number(btn.dataset.idx));
+              });
+
+              if (window.AppNav) {
+                const origApply = window.AppNav.applyState.bind(window.AppNav);
+                window.AppNav.applyState = function(index, direction, immediate) {
+                  origApply(index, direction, immediate);
+                  document.querySelectorAll('.u-nav-btn').forEach(b => b.classList.toggle('active', Number(b.dataset.idx) === index));
+                };
+              }
+
+              // 3. Theme Toggle Persistence
+              if (localStorage.getItem('mtr_ultra_theme') === 'light') document.body.classList.add('light-theme');
+              document.getElementById('u-theme-btn').addEventListener('click', () => {
+                document.body.classList.toggle('light-theme');
+                localStorage.setItem('mtr_ultra_theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+              });
+
+              // 4. Persistent Pinned Tiles in localStorage
+              if (window.HomeManager) {
+                try {
+                  const saved = localStorage.getItem('mtr_ultra_pins');
+                  if (saved) window.HomeManager.pinned = JSON.parse(saved);
+                } catch(e) {}
+                const origPin = window.HomeManager.pinTile.bind(window.HomeManager);
+                window.HomeManager.pinTile = function(l, s, d, n) {
+                  origPin(l, s, d, n);
+                  try { localStorage.setItem('mtr_ultra_pins', JSON.stringify(window.HomeManager.pinned)); } catch(e) {}
+                };
+                const origUnpin = window.HomeManager.unpin.bind(window.HomeManager);
+                window.HomeManager.unpin = function(id, ev) {
+                  origUnpin(id, ev);
+                  try { localStorage.setItem('mtr_ultra_pins', JSON.stringify(window.HomeManager.pinned)); } catch(e) {}
+                };
+                window.HomeManager.refreshTiles();
+              }
+
+              // 5. Instant Station Search Filter in Search Page
+              const searchPage = document.getElementById('page-search');
+              if (searchPage && !document.getElementById('u-sta-search')) {
+                const inp = document.createElement('input');
+                inp.id = 'u-sta-search';
+                inp.className = 'u-search-bar';
+                inp.placeholder = '🔍 快速搜尋車站名稱或代碼 (如 中環, CEN)...';
+                searchPage.insertBefore(inp, searchPage.firstChild);
+                inp.addEventListener('input', () => {
+                  const q = inp.value.trim().toLowerCase();
+                  if (!q) { window.SearchManager.reset(); return; }
+                  const list = document.getElementById('search-list');
+                  const matches = Object.keys(MtrData.stations).filter(c => c.toLowerCase().includes(q) || MtrData.stations[c].name.includes(q));
+                  list.innerHTML = matches.map(sta => {
+                    const line = MtrData.lines.find(l => !l.isBranch && l.path.includes(sta)) || MtrData.lines[0];
+                    return `<div class="search-item-wrapper" id="swrap-${sta}"><div class="search-item" style="border-left-color:${line.color};" onclick="SearchManager.lineId='${line.id}';SearchManager.toggleStation('${sta}',this)"><span>${MtrData.stations[sta].name} (${sta})</span> <span class="arrow">›</span></div><div class="search-accordion" style="border-left-color:${line.color};" id="sacc-${sta}"></div></div>`;
+                  }).join('');
+                });
+              }
+
+              // 6. GPS Nearest Station Locator
+              document.getElementById('u-gps-btn').addEventListener('click', () => {
+                const findNearest = (lat, lon) => {
+                  let best = 'MOK', minD = 1e9;
+                  Object.keys(MtrData.stations).forEach(k => {
+                    const s = MtrData.stations[k];
+                    const d = Math.hypot((s.lat - lat)*111000, (s.lon - lon)*102000);
+                    if (d < minD) { minD = d; best = k; }
+                  });
+                  window.AppNav.goTo(2);
+                  setTimeout(() => {
+                    window.MtrApp.setFocus('origin');
+                    const m = document.getElementById('marker-' + best);
+                    if (m) m.click();
+                  }, 250);
+                };
+                if (navigator.geolocation) {
+                  navigator.geolocation.getCurrentPosition(p => findNearest(p.coords.latitude, p.coords.longitude), () => findNearest(22.32, 114.17), {timeout:2500});
+                } else findNearest(22.32, 114.17);
+              });
+            }
+            window.addEventListener('load', () => setTimeout(initUltra, 400));
+          })();
+          JS_EOF
+
+            if ! grep -q "v2_enhance.js" src/index.html; then
+              sed -i 's|<script src="js/app.js"></script>|<script src="js/app.js"></script>
+<script src="js/v2_enhance.js"></script>|' src/index.html
+            fi
+
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git diff --staged --quiet || (git commit -m "Initialize MTR Metro Ultra 2.0 codebase" && git push)
+          fi
+
+      - name: Initialize Capacitor Android (Offline Self-Contained APK)
+        run: |
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          cat <<EOF > capacitor.config.json
+          {
+            "appId": "com.maxyu.mtreta.v2",
+            "appName": "MTR Ultra 2.0",
+            "webDir": "src",
+            "bundledWebRuntime": false
+          }
+          EOF
+          npx cap add android
+          npx cap copy android
+
+      - name: Grant Vibrate & Location Permissions
+        run: |
+          sed -i '/<uses-permission android:name="android.permission.INTERNET" \/>/a \    <uses-permission android:name="android.permission.VIBRATE" \/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" \/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" \/>' android/app/src/main/AndroidManifest.xml
+
+      - name: Copy Custom Launcher Icons
+        run: |
+          if [ -d "custom_icons" ]; then
+            cp -rf custom_icons/* android/app/src/main/res/ || true
+          fi
+
+      - name: Fix Kotlin Duplicate Classes Conflict
+        run: |
+          echo "" >> android/app/build.gradle
+          echo "configurations.all {" >> android/app/build.gradle
+          echo "    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'" >> android/app/build.gradle
+          echo "    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'" >> android/app/build.gradle
+          echo "}" >> android/app/build.gradle
+
+      - name: Build Debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MTR_Metro_Ultra_v2_APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
