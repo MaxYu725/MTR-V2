@@ -1,0 +1,35 @@
+<div class="status-banner" id="home-status-banner" onclick="AppNav.goTo(3)">
+    <div class="banner-left">
+        <div class="pulse-dot" id="home-status-dot"></div>
+        <span id="home-status-text">正在同步全網車務與天氣狀況...</span>
+    </div>
+    <span style="font-size:0.8rem;color:var(--sub-text);">詳情 ➔</span>
+</div>
+
+<div class="gps-card" id="gps-nearest-card">
+    <div class="gps-info">
+        <div class="gps-tag">📍 智能定位 • 最近港鐵站</div>
+        <div class="gps-sta-name" id="gps-sta-display">點擊定位尋找身邊車站</div>
+        <div style="font-size:0.75rem;color:var(--sub-text);" id="gps-dist-display">支援實時 GPS 定位與一鍵設為起點</div>
+    </div>
+    <div class="gps-actions" id="gps-action-btns">
+        <button class="chip-btn primary" onclick="HomeManager.locateNearestStation()">📡 立即定位</button>
+    </div>
+</div>
+
+<div id="saved-routes-wrapper" class="hidden">
+    <div class="section-header-row">
+        <span class="section-title">⭐ 常用通勤路線</span>
+        <span class="section-action" onclick="AppNav.goTo(2)">+ 新增路線</span>
+    </div>
+    <div class="saved-routes-list" id="saved-routes-list"></div>
+</div>
+
+<div class="section-header-row">
+    <span class="section-title">⏱️ 釘選即時到站看板 (LIVE ETA)</span>
+    <div style="display:flex;gap:12px;">
+        <span class="section-action" onclick="HomeManager.refreshTiles()">↻ 刷新</span>
+        <span class="section-action" onclick="AppNav.goTo(1)">+ 新增釘選</span>
+    </div>
+</div>
+<div class="tile-grid" id="home-tile-grid"></div>

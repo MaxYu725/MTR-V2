@@ -1,0 +1,9 @@
+<div class="explorer-controls">
+    <div class="search-input-box">
+        <span>🔍</span>
+        <input type="text" id="station-search-input" placeholder="搜尋車站名稱 (中/英) 或代碼 如 CEN, 旺角..." oninput="SearchManager.onSearchInput(this.value)">
+        <span id="search-clear-btn" class="hidden" style="cursor:pointer;color:var(--sub-text);font-size:0.85rem;" onclick="SearchManager.clearSearch()">✕</span>
+    </div>
+    <div class="line-filter-bar" id="line-filter-bar"></div>
+</div>
+<div id="search-list" class="search-list"></div>

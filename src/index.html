@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MTR Metro Ultra - 港鐵領航 Pro</title>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#070A12">
+    <meta name="apple-mobile-web-app-title" content="MTR Ultra">
+    <meta name="application-name" content="MTR Ultra">
+
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgZmlsbD0iIzFiYTFlMiIvPjxwYXRoIGQ9Ik0zNS41IDQ4QTk3IDk3IDAgMCAwIDIyMC41IDQ4TDE5NSA0OEE3MyA3MyAwIDAgMSA2MSA0OFpNMzUuNSAyMDhBOTcgOTcgMCAwIDEgMjIwLjUgMjA4TDE5NSAyMDhBNzMgNzMgMCAwIDAgNjEgMjA4WiIgZmlsbD0iI2ZmZmZmZiIvPjxyZWN0IHg9IjExNiIgeT0iNDgiIHdpZHRoPSIyNCIgaGVpZ2h0PSIxNjAiIGZpbGw9IiNmZmZmZmYiLz48L3N2Zz4=">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="ambient-bg">
+    <div class="ambient-orb orb-1"></div>
+    <div class="ambient-orb orb-2"></div>
+</div>
+
+<div id="app-wrapper">
+    <div class="top-header-bar">
+        <div class="brand-group">
+            <div class="brand-logo">Ж</div>
+            <div class="app-title-bar">MTR METRO</div>
+            <div class="brand-badge">ULTRA 2.0</div>
+        </div>
+        <div class="top-actions">
+            <div class="live-clock" id="live-clock">00:00:00</div>
+            <button class="icon-action-btn" title="定位最近車站" onclick="AppNav.goTo(0);HomeManager.locateNearestStation()">📍</button>
+            <button class="icon-action-btn" id="theme-toggle-btn" title="切換深色/淺色模式" onclick="ThemeManager.toggle()">☀️</button>
+        </div>
+    </div>
+
+    <div id="pivot-headers">
+        <h2 class="pivot-header active" data-index="0">home</h2>
+        <h2 class="pivot-header" data-index="1">explorer</h2>
+        <h2 class="pivot-header" data-index="2">planner</h2>
+        <h2 class="pivot-header" data-index="3">status</h2>
+    </div>
+
+    <div id="pivot-content">
+        <div class="pivot-page active" id="page-home"></div>
+        <div class="pivot-page" id="page-search"></div>
+        <div class="pivot-page" id="page-planner"></div>
+        <div class="pivot-page" id="page-status"></div>
+    </div>
+</div>
+
+<!-- 懸浮毛玻璃底部導航列 -->
+<div id="bottom-nav">
+    <div class="nav-tab active" data-index="0" onclick="AppNav.goTo(0)">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">首頁看板</span>
+    </div>
+    <div class="nav-tab" data-index="1" onclick="AppNav.goTo(1)">
+        <span class="nav-icon">🧭</span>
+        <span class="nav-label">車站百科</span>
+    </div>
+    <div class="nav-tab" data-index="2" onclick="AppNav.goTo(2)">
+        <span class="nav-icon">🗺️</span>
+        <span class="nav-label">路線規劃</span>
+    </div>
+    <div class="nav-tab" data-index="3" onclick="AppNav.goTo(3)">
+        <span class="nav-icon">⚡</span>
+        <span class="nav-label">車務天氣</span>
+    </div>
+</div>
+
+<!-- 快速選站彈窗 Modal -->
+<div id="station-picker-modal" class="hidden">
+    <div class="modal-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div style="font-weight:800;font-size:1.05rem;" id="picker-modal-title">選擇車站</div>
+            <button class="chip-btn" onclick="MtrApp.closePicker()">✕ 關閉</button>
+        </div>
+        <div class="search-input-box" style="margin-bottom:10px;">
+            <span>🔍</span>
+            <input type="text" id="picker-search-input" placeholder="輸入中英文站名或代碼..." oninput="MtrApp.renderPickerList(this.value)">
+        </div>
+        <div id="picker-station-list" style="flex:1;overflow-y:auto;"></div>
+    </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+    async function loadPages() {
+        const pages = ['home', 'search', 'planner', 'status'];
+        for (const page of pages) {
+            try {
+                const response = await fetch(`pages/${page}.html`);
+                const html = await response.text();
+                document.getElementById(`page-${page}`).innerHTML = html;
+            } catch (e) {
+                console.error(`無法載入頁面: ${page}.html`, e);
+            }
+        }
+        ThemeManager.init();
+        AppNav.init();
+        HomeManager.init();
+        SearchManager.reset();
+        MtrApp.init();
+        StatusManager.init();
+    }
+    document.addEventListener('DOMContentLoaded', loadPages);
+</script>
+</body>
+</html>

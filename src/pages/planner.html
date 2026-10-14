@@ -1,0 +1,45 @@
+<div id="map-container" class="hide-minor-labels"></div>
+
+<div class="map-floating-tools">
+    <button class="map-tool-btn" title="放大地圖" onclick="MtrApp.zoomIn()">＋</button>
+    <button class="map-tool-btn" title="縮小地圖" onclick="MtrApp.zoomOut()">－</button>
+    <button class="map-tool-btn" title="重置全網視角" onclick="MtrApp.resetView()">🎯</button>
+    <button class="map-tool-btn" title="切換顯示所有站名" onclick="MtrApp.toggleAllLabels()">🏷️</button>
+</div>
+
+<div id="route-drawer">
+    <div class="mode-pills-row">
+        <div class="mode-pill active" data-mode="fastest" onclick="MtrApp.setRouteMode('fastest')">⚡ 最快時間</div>
+        <div class="mode-pill" data-mode="fewest" onclick="MtrApp.setRouteMode('fewest')">🔄 最少轉乘</div>
+        <div class="mode-pill" data-mode="comfort" onclick="MtrApp.setRouteMode('comfort')">🛋️ 對面月台優先</div>
+    </div>
+    <div class="drawer-row">
+        <div id="ui-origin-box" class="selection-box box-origin active-focus" onclick="MtrApp.setFocus('origin')">
+            <div class="box-label-row">
+                <span class="box-label">↗ 起點 ORIGIN</span>
+                <span class="picker-trigger-btn" onclick="event.stopPropagation();MtrApp.openPicker('origin')">列表選站 ▾</span>
+            </div>
+            <div id="ui-origin-name" class="box-value">點擊地圖或列表</div>
+        </div>
+        <button class="swap-btn" onclick="MtrApp.swapStations()" title="對調起訖站">⇅</button>
+        <div id="ui-dest-box" class="selection-box box-dest" onclick="MtrApp.setFocus('dest')">
+            <div class="box-label-row">
+                <span class="box-label">↘ 終點 DEST</span>
+                <span class="picker-trigger-btn" onclick="event.stopPropagation();MtrApp.openPicker('dest')">列表選站 ▾</span>
+            </div>
+            <div id="ui-dest-name" class="box-value">點擊地圖或列表</div>
+        </div>
+    </div>
+    <button id="btn-calculate" class="metro-btn accent hidden" style="width:100%;" onclick="MtrApp.calculateRoute()">
+        🚀 立即規劃最佳路線 Calculate Route
+    </button>
+</div>
+
+<div id="route-result">
+    <div class="result-header"></div>
+    <div class="itinerary-list" id="itinerary-list"></div>
+    <div style="display:flex;gap:10px;padding:10px 18px 0 18px;flex-shrink:0;">
+        <button class="metro-btn" style="flex:1;padding:11px;font-size:0.9rem;" onclick="MtrApp.saveCurrentRoute()">⭐ 收藏路線</button>
+        <button class="metro-btn accent" style="flex:1;padding:11px;font-size:0.9rem;" onclick="MtrApp.closeResult()">← 返回地圖</button>
+    </div>
+</div>

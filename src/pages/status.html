@@ -1,0 +1,19 @@
+<div class="weather-dashboard-card" id="hko-weather-card">
+    <div class="weather-left">
+        <div style="font-size:0.72rem;font-weight:700;color:var(--accent-color);text-transform:uppercase;letter-spacing:0.8px;">🌤️ 香港天文台 • 實時交通天氣監測</div>
+        <div style="display:flex;align-items:baseline;gap:10px;margin-top:2px;">
+            <div class="weather-temp" id="hko-temp-val">26°C</div>
+            <div class="weather-desc" id="hko-warn-text">現時無惡劣天氣警告 • 鐵路露天段正常</div>
+        </div>
+    </div>
+    <button class="chip-btn" onclick="StatusManager.toggleSimMode()" id="btn-sim-status">🧪 模擬事故演練</button>
+</div>
+
+<div class="section-header-row">
+    <span class="section-title">🚆 全網 10 條路綫實時狀態與應變指南</span>
+    <span class="section-action" onclick="StatusManager.fetchStatus()">↻ 重新檢測</span>
+</div>
+
+<div class="status-list" id="realtime-status-list">
+    <div style="padding:20px;color:var(--sub-text);text-align:center;">正在載入實時車務狀況...</div>
+</div>
