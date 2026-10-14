@@ -1,4 +1,4 @@
-name: Deploy & Build MTR Metro Ultra 2.0 APK
+name: Build & Deploy MTR Metro Ultra 2.0 APK
 
 on:
   push:
@@ -13,12 +13,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout MTR-V2 Repository
+      - name: Checkout MTR-V2
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Node.js 20 & Python 3
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -29,25 +29,24 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Sync Base Assets from MTRMetroApp & Upgrade to Ultra 2.0
+      - name: Sync Base Assets & Apply Ultra 2.0 Upgrade
         run: |
-          if [ ! -f "src/js/v2_enhance.js" ]; then
-            echo "Bootstrapping MTR Metro Ultra 2.0 files..."
-            git clone https://github.com/maxyu725/MTRMetroApp.git /tmp/mtr_v1 || git clone https://github.com/maxyu725/MTR_Metro_App.git /tmp/mtr_v1 || true
-            mkdir -p src/css src/js src/pages custom_icons
-            if [ -d "/tmp/mtr_v1/src" ]; then
-              cp -rf /tmp/mtr_v1/src/* src/
-            fi
-            if [ -d "/tmp/mtr_v1/custom_icons" ]; then
-              cp -rf /tmp/mtr_v1/custom_icons/* custom_icons/
-            fi
+          git clone https://github.com/MaxYu725/MTRMetroApp.git /tmp/v1 || true
+          mkdir -p src/css src/js src/pages custom_icons
+          if [ -d "/tmp/v1/src" ]; then
+            cp -rf /tmp/v1/src/* src/ || true
+          fi
+          if [ -d "/tmp/v1/custom_icons" ]; then
+            cp -rf /tmp/v1/custom_icons/* custom_icons/ || true
+          fi
+          python3 - << 'PYEOF'
+          from pathlib import Path
 
-            # Inject Cyber-Glass 2.0 Theme & Multi-Mode Upgrade Pack
-            cat << 'CSS_EOF' >> src/css/style.css
-          /* === MTR Metro Ultra 2.0 Cyber-Glass & Theme Upgrade === */
+          css_upgrade = '''
+          /* === MTR Metro Ultra 2.0 Cyber-Glass UI === */
           :root {
             --bg-color: #070A12;
-            --card-glass: rgba(20, 28, 46, 0.78);
+            --card-glass: rgba(20, 28, 46, 0.82);
             --glass-border: rgba(255, 255, 255, 0.12);
             --accent-color: #0EA5E9;
           }
@@ -56,53 +55,132 @@ jobs:
             --text-color: #0F172A;
             --sub-text: #475569;
             --border-color: rgba(15, 23, 42, 0.12);
-            --card-glass: rgba(255, 255, 255, 0.9);
+            --card-glass: rgba(255, 255, 255, 0.92);
             --glass-border: rgba(15, 23, 42, 0.1);
           }
-          #pivot-content { padding-bottom: 72px; }
-          .live-tile { border-radius: 18px; border: 1px solid rgba(255,255,255,0.18); box-shadow: 0 10px 25px rgba(0,0,0,0.45); }
-          .status-banner, .search-item, .status-item { border-radius: 14px; background: var(--card-glass) !important; backdrop-filter: blur(16px); border: 1px solid var(--glass-border); }
-          #route-drawer, #route-result { background: var(--card-glass) !important; backdrop-filter: blur(22px); border-radius: 22px 22px 0 0; }
+          body { background-color: var(--bg-color) !important; transition: background 0.3s; }
+          #pivot-content { padding-bottom: 76px !important; }
+          .live-tile {
+            border-radius: 18px !important;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 10px 26px rgba(0,0,0,0.45);
+          }
+          .status-banner, .search-item, .status-item {
+            border-radius: 14px !important;
+            background: var(--card-glass) !important;
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            margin-bottom: 8px;
+          }
+          #route-drawer {
+            bottom: 76px !important;
+            width: calc(100% - 24px) !important;
+            left: 12px !important;
+            border-radius: 20px !important;
+            background: var(--card-glass) !important;
+            border: 1px solid var(--glass-border) !important;
+          }
+          #route-result {
+            padding-bottom: 80px !important;
+            border-radius: 24px 24px 0 0 !important;
+            background: var(--card-glass) !important;
+          }
           #ultra-bottom-nav {
-            position: fixed; bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
-            width: calc(100% - 32px); max-width: 440px; height: 58px; background: rgba(13, 18, 30, 0.88);
-            backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 30px;
-            display: flex; justify-content: space-around; align-items: center; z-index: 3000;
+            position: fixed;
+            bottom: max(12px, env(safe-area-inset-bottom));
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 28px);
+            max-width: 440px;
+            height: 58px;
+            background: rgba(13, 18, 30, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 3000;
             box-shadow: 0 10px 30px rgba(0,0,0,0.55);
           }
-          body.light-theme #ultra-bottom-nav { background: rgba(255, 255, 255, 0.92); }
-          .u-nav-btn { flex: 1; text-align: center; font-size: 0.72rem; font-weight: 700; color: var(--sub-text); cursor: pointer; padding: 8px 0; border-radius: 24px; transition: all 0.2s; }
-          .u-nav-btn.active { color: #fff; background: linear-gradient(135deg, #0EA5E9, #2563EB); }
-          .u-top-tools { position: fixed; top: max(12px, env(safe-area-inset-top)); right: 18px; z-index: 2500; display: flex; gap: 8px; }
-          .u-pill-btn { background: var(--card-glass); border: 1px solid var(--glass-border); color: var(--text-color); border-radius: 18px; padding: 5px 11px; font-size: 0.75rem; font-weight: 700; cursor: pointer; backdrop-filter: blur(12px); }
-          .u-search-bar { margin: 0 0 12px 0; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--card-glass); color: var(--text-color); width: 100%; font-size: 0.95rem; outline: none; }
-          .u-fare-pills { display: flex; gap: 6px; margin-top: 8px; overflow-x: auto; }
-          .u-fare-pill { padding: 4px 9px; border-radius: 8px; background: rgba(255,255,255,0.08); font-size: 0.72rem; cursor: pointer; white-space: nowrap; }
-          .u-fare-pill.active { background: rgba(76, 217, 100, 0.22); color: #4cd964; font-weight: 700; border: 1px solid #4cd964; }
-          CSS_EOF
+          body.light-theme #ultra-bottom-nav { background: rgba(255, 255, 255, 0.94); }
+          .u-nav-btn {
+            flex: 1;
+            text-align: center;
+            font-size: 0.74rem;
+            font-weight: 700;
+            color: var(--sub-text);
+            cursor: pointer;
+            padding: 9px 0;
+            margin: 0 4px;
+            border-radius: 22px;
+            transition: all 0.2s;
+          }
+          .u-nav-btn.active {
+            color: #fff;
+            background: linear-gradient(135deg, #0EA5E9, #2563EB);
+          }
+          .u-top-tools {
+            position: fixed;
+            top: max(12px, env(safe-area-inset-top));
+            right: 16px;
+            z-index: 2500;
+            display: flex;
+            gap: 6px;
+          }
+          .u-pill-btn {
+            background: var(--card-glass);
+            border: 1px solid var(--glass-border);
+            color: var(--text-color);
+            border-radius: 16px;
+            padding: 5px 10px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            cursor: pointer;
+            backdrop-filter: blur(12px);
+          }
+          .u-search-bar {
+            margin: 0 0 12px 0;
+            padding: 11px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            background: var(--card-glass);
+            color: var(--text-color);
+            width: 100%;
+            font-size: 0.92rem;
+            outline: none;
+          }
+          '''
 
-            cat << 'JS_EOF' > src/js/v2_enhance.js
-          // === MTR Metro Ultra 2.0 Enhancement Module ===
+          style_file = Path("src/css/style.css")
+          if style_file.exists() and "Cyber-Glass UI" not in style_file.read_text(encoding="utf-8"):
+              with open(style_file, "a", encoding="utf-8") as f:
+                  f.write(css_upgrade)
+
+          js_upgrade = '''
           (function() {
-            function initUltra() {
-              // 1. Top Theme & GPS Bar
+            function bootUltra() {
+              if (document.getElementById('ultra-bottom-nav')) return;
+
               const topTools = document.createElement('div');
               topTools.className = 'u-top-tools';
               topTools.innerHTML = '<button class="u-pill-btn" id="u-gps-btn">📍 最近車站</button><button class="u-pill-btn" id="u-theme-btn">☀️ 主題</button>';
               document.body.appendChild(topTools);
 
-              // 2. Floating Glass Bottom Nav
               const bNav = document.createElement('div');
               bNav.id = 'ultra-bottom-nav';
-              bNav.innerHTML = [
+              const tabs = [
                 { i: 0, l: '🏠 首頁看板' },
                 { i: 1, l: '🧭 車站百科' },
                 { i: 2, l: '🗺️ 路線規劃' },
                 { i: 3, l: '⚡ 車務天氣' }
-              ].map(t => `<div class="u-nav-btn ${t.i===0?'active':''}" data-idx="${t.i}">${t.l}</div>`).join('');
+              ];
+              bNav.innerHTML = tabs.map(function(t) {
+                return '<div class="u-nav-btn ' + (t.i===0?'active':'') + '" data-idx="' + t.i + '">' + t.l + '</div>';
+              }).join('');
               document.body.appendChild(bNav);
 
-              bNav.addEventListener('click', (e) => {
+              bNav.addEventListener('click', function(e) {
                 const btn = e.target.closest('.u-nav-btn');
                 if (!btn || !window.AppNav) return;
                 window.AppNav.goTo(Number(btn.dataset.idx));
@@ -112,18 +190,21 @@ jobs:
                 const origApply = window.AppNav.applyState.bind(window.AppNav);
                 window.AppNav.applyState = function(index, direction, immediate) {
                   origApply(index, direction, immediate);
-                  document.querySelectorAll('.u-nav-btn').forEach(b => b.classList.toggle('active', Number(b.dataset.idx) === index));
+                  document.querySelectorAll('.u-nav-btn').forEach(function(b) {
+                    b.classList.toggle('active', Number(b.dataset.idx) === index);
+                  });
                 };
               }
 
-              // 3. Theme Toggle Persistence
-              if (localStorage.getItem('mtr_ultra_theme') === 'light') document.body.classList.add('light-theme');
-              document.getElementById('u-theme-btn').addEventListener('click', () => {
+              if (localStorage.getItem('mtr_ultra_theme') === 'light') {
+                document.body.classList.add('light-theme');
+              }
+              document.getElementById('u-theme-btn').addEventListener('click', function() {
                 document.body.classList.toggle('light-theme');
-                localStorage.setItem('mtr_ultra_theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+                const isLight = document.body.classList.contains('light-theme');
+                localStorage.setItem('mtr_ultra_theme', isLight ? 'light' : 'dark');
               });
 
-              // 4. Persistent Pinned Tiles in localStorage
               if (window.HomeManager) {
                 try {
                   const saved = localStorage.getItem('mtr_ultra_pins');
@@ -142,44 +223,133 @@ jobs:
                 window.HomeManager.refreshTiles();
               }
 
-              // 5. Instant Station Search Filter in Search Page
               const searchPage = document.getElementById('page-search');
               if (searchPage && !document.getElementById('u-sta-search')) {
                 const inp = document.createElement('input');
                 inp.id = 'u-sta-search';
                 inp.className = 'u-search-bar';
-                inp.placeholder = '🔍 快速搜尋車站名稱或代碼 (如 中環, CEN)...';
+                inp.placeholder = '🔍 搜尋車站名稱或代碼 (如 中環, 旺角, CEN)...';
                 searchPage.insertBefore(inp, searchPage.firstChild);
-                inp.addEventListener('input', () => {
+                inp.addEventListener('input', function() {
                   const q = inp.value.trim().toLowerCase();
                   if (!q) { window.SearchManager.reset(); return; }
                   const list = document.getElementById('search-list');
-                  const matches = Object.keys(MtrData.stations).filter(c => c.toLowerCase().includes(q) || MtrData.stations[c].name.includes(q));
-                  list.innerHTML = matches.map(sta => {
-                    const line = MtrData.lines.find(l => !l.isBranch && l.path.includes(sta)) || MtrData.lines[0];
-                    return `<div class="search-item-wrapper" id="swrap-${sta}"><div class="search-item" style="border-left-color:${line.color};" onclick="SearchManager.lineId='${line.id}';SearchManager.toggleStation('${sta}',this)"><span>${MtrData.stations[sta].name} (${sta})</span> <span class="arrow">›</span></div><div class="search-accordion" style="border-left-color:${line.color};" id="sacc-${sta}"></div></div>`;
+                  const matches = Object.keys(MtrData.stations).filter(function(c) {
+                    return c.toLowerCase().includes(q) || MtrData.stations[c].name.includes(q);
+                  });
+                  list.innerHTML = matches.map(function(sta) {
+                    const line = MtrData.lines.find(function(l) { return !l.isBranch && l.path.includes(sta); }) || MtrData.lines[0];
+                    const oc = "SearchManager.lineId='" + line.id + "';SearchManager.toggleStation('" + sta + "',this)";
+                    return '<div class="search-item-wrapper" id="swrap-' + sta + '"><div class="search-item" style="border-left-color:' + line.color + ';" onclick="' + oc + '"><span>' + MtrData.stations[sta].name + ' (' + sta + ')</span> <span class="arrow">›</span></div><div class="search-accordion" style="border-left-color:' + line.color + ';" id="sacc-' + sta + '"></div></div>';
                   }).join('');
                 });
               }
 
-              // 6. GPS Nearest Station Locator
-              document.getElementById('u-gps-btn').addEventListener('click', () => {
-                const findNearest = (lat, lon) => {
+              document.getElementById('u-gps-btn').addEventListener('click', function() {
+                function selectNearest(lat, lon) {
                   let best = 'MOK', minD = 1e9;
-                  Object.keys(MtrData.stations).forEach(k => {
+                  Object.keys(MtrData.stations).forEach(function(k) {
                     const s = MtrData.stations[k];
                     const d = Math.hypot((s.lat - lat)*111000, (s.lon - lon)*102000);
                     if (d < minD) { minD = d; best = k; }
                   });
                   window.AppNav.goTo(2);
-                  setTimeout(() => {
+                  setTimeout(function() {
                     window.MtrApp.setFocus('origin');
                     const m = document.getElementById('marker-' + best);
                     if (m) m.click();
                   }, 250);
-                };
+                }
                 if (navigator.geolocation) {
-                  navigator.geolocation.getCurrentPosition(p => findNearest(p.coords.latitude, p.coords.longitude), () => findNearest(22.32, 114.17), {timeout:2500});
+                  navigator.geolocation.getCurrentPosition(
+                    function(p) { selectNearest(p.coords.latitude, p.coords.longitude); },
+                    function() { selectNearest(22.32, 114.17); },
+                    { timeout: 2500 }
+                  );
+                } else {
+                  selectNearest(22.32, 114.17);
+                }
+              });
+            }
+            window.addEventListener('load', function() { setTimeout(bootUltra, 450); });
+          })();
+          '''
+
+          Path("src/js/v2_enhance.js").write_text(js_upgrade, encoding="utf-8")
+          idx_file = Path("src/index.html")
+          if idx_file.exists():
+              txt = idx_file.read_text(encoding="utf-8")
+              if "v2_enhance.js" not in txt:
+                  old_tag = '<script src="js/app.js"></script>'
+                  new_tag = '<script src="js/app.js"></script><script src="js/v2_enhance.js"></script>'
+                  idx_file.write_text(txt.replace(old_tag, new_tag), encoding="utf-8")
+          PYEOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --staged --quiet || (git commit -m "Sync MTR Metro Ultra 2.0 files" && git push) || true
+
+      - name: Initialize Capacitor Android (Offline Self-Contained APK)
+        run: |
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          python3 - << 'PYEOF'
+          import json
+          cfg = {
+              "appId": "com.maxyu.mtreta.v2",
+              "appName": "MTR Ultra 2.0",
+              "webDir": "src",
+              "bundledWebRuntime": False
+          }
+          with open("capacitor.config.json", "w") as f:
+              json.dump(cfg, f, indent=2)
+          PYEOF
+          npx cap add android
+          npx cap copy android
+
+      - name: Add Android Permissions & Custom Icons
+        run: |
+          python3 - << 'PYEOF'
+          from pathlib import Path
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          if manifest.exists():
+              txt = manifest.read_text(encoding="utf-8")
+              p1 = '<uses-permission android:name="android.permission.VIBRATE" />'
+              p2 = '<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />'
+              p3 = '<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />'
+              if "VIBRATE" not in txt:
+                  target = '<uses-permission android:name="android.permission.INTERNET" />'
+                  txt = txt.replace(target, target + " " + p1 + " " + p2 + " " + p3)
+                  manifest.write_text(txt, encoding="utf-8")
+
+          gradle_file = Path("android/app/build.gradle")
+          if gradle_file.exists():
+              gtxt = gradle_file.read_text(encoding="utf-8")
+              fix = '''
+          configurations.all {
+              exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+              exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+          }
+          '''
+              if "kotlin-stdlib-jdk7" not in gtxt:
+                  gradle_file.write_text(gtxt + "\n" + fix, encoding="utf-8")
+          PYEOF
+          if [ -d "custom_icons" ]; then
+            cp -rf custom_icons/* android/app/src/main/res/ || true
+          fi
+
+      - name: Build Debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MTR_Metro_Ultra_v2_APK
+          path: android/app/build/outputs/apk/debug/app-debug.apkion(p => findNearest(p.coords.latitude, p.coords.longitude), () => findNearest(22.32, 114.17), {timeout:2500});
                 } else findNearest(22.32, 114.17);
               });
             }
