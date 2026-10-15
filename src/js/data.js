@@ -225,3 +225,4 @@ const MtrData = {
         'SOH': { name: '海怡半島', en: 'South Horizons', lat: 22.2430, lon: 114.1450, toilet: true, baby: true, first: '06:00', last: '00:45', exits: ['A: 海怡廣場東翼', 'B: 海怡西商場', 'C: 新海怡廣場 (Horizon Plaza Outlet)'] }
     }
 };
+

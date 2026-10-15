@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>MTR Aura OS 3.0 - 港鐵極光旗艦版</title>
+    <title>MTR Aura OS 3.0 Pro - 港鐵極光旗艦版</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,6 +14,7 @@
 </head>
 <body>
 <div id="aurora-mesh"></div>
+<div id="aura-toast">✨ MTR Aura OS 已就緒</div>
 
 <div id="aura-shell">
     <!-- Top Dynamic Island Bar -->
@@ -56,7 +57,7 @@
             <div class="bento-section-bar">
                 <span class="bento-section-label">📺 雙向月台實時電視看板 (DUAL-PIDS LIVE)</span>
                 <div style="display:flex;gap:12px;">
-                    <span class="bento-action-link" onclick="AuraDashboard.refreshAllBoards()">↻ 刷新</span>
+                    <span class="bento-action-link" onclick="AuraDashboard.refreshAllBoards(true)">↻ 刷新</span>
                     <span class="bento-action-link" onclick="AuraPicker.open('pin')">＋ 新增監測站</span>
                 </div>
             </div>
@@ -109,16 +110,24 @@
 
             <!-- Floating Map Zoom & Label Controls -->
             <div class="cockpit-map-tools">
-                <button class="cockpit-tool-btn" onclick="AuraCockpit.zoomIn()">＋</button>
-                <button class="cockpit-tool-btn" onclick="AuraCockpit.zoomOut()">－</button>
-                <button class="cockpit-tool-btn" onclick="AuraCockpit.resetMap()">🎯</button>
-                <button class="cockpit-tool-btn" onclick="AuraCockpit.toggleLabels()">🏷️</button>
+                <button class="cockpit-tool-btn" title="放大地圖" onclick="AuraCockpit.zoomIn()">＋</button>
+                <button class="cockpit-tool-btn" title="縮小地圖" onclick="AuraCockpit.zoomOut()">－</button>
+                <button class="cockpit-tool-btn" title="重置全港視角" onclick="AuraCockpit.resetMap()">🎯</button>
+                <button class="cockpit-tool-btn" title="顯示/隱藏次要站名" onclick="AuraCockpit.toggleLabels()">🏷️</button>
             </div>
 
             <!-- Slide-Up Navigation Result Sheet -->
             <div id="cockpit-route-sheet">
-                <div class="sheet-pill-handle" onclick="document.getElementById('cockpit-route-sheet').classList.toggle('tall')"></div>
-                <div id="cockpit-sheet-header" style="padding:0 16px 8px 16px;"></div>
+                <div class="sheet-top-bar">
+                    <div style="display:flex;gap:6px;">
+                        <button class="pids-icon-btn" onclick="AuraCockpit.setSheetSnap('mini')">🗕 看地圖</button>
+                        <button class="pids-icon-btn" onclick="AuraCockpit.setSheetSnap('normal')">🗔 標準</button>
+                        <button class="pids-icon-btn" onclick="AuraCockpit.setSheetSnap('tall')">🗖 全屏</button>
+                    </div>
+                    <div class="sheet-pill-handle" onclick="AuraCockpit.cycleSheetSnap()"></div>
+                    <button class="pids-icon-btn" onclick="AuraCockpit.clearRoute()">✕ 清除</button>
+                </div>
+                <div id="cockpit-sheet-header" style="padding:2px 16px 8px 16px;"></div>
                 <div class="fare-matrix-grid" id="cockpit-fare-grid"></div>
                 <div id="cockpit-consist-container"></div>
                 <div id="cockpit-timeline-list" style="flex:1;overflow-y:auto;padding:10px 16px;"></div>
@@ -127,7 +136,7 @@
 
         <!-- VIEW 2: 車站全息百科 (Station Hologram Hub) -->
         <section class="aura-view" id="view-hub">
-            <div style="position:sticky;top:0;z-index:20;background:var(--bg-deep);padding-bottom:10px;">
+            <div style="position:sticky;top:0;z-index:20;background:var(--bg-deep);padding-bottom:10px;transition:background 0.3s;">
                 <div style="display:flex;align-items:center;background:var(--bento-bg);border:1px solid var(--glass-border);border-radius:16px;padding:10px 14px;gap:10px;margin-bottom:10px;">
                     <span>🔍</span>
                     <input type="text" id="hub-search-input" placeholder="搜尋 98 個港鐵車站 (中/英/代碼 如 CEN, 金鐘)..." style="background:transparent;border:none;outline:none;color:var(--text-main);width:100%;font-size:0.92rem;" oninput="AuraHub.onSearch(this.value)">
@@ -154,7 +163,7 @@
 
             <div class="bento-section-bar">
                 <span class="bento-section-label">⚡ 全網 10 條港鐵路綫脈搏矩陣 (點擊展開應變巴士)</span>
-                <span class="bento-action-link" onclick="AuraPulse.refresh()">↻ 同步狀態</span>
+                <span class="bento-action-link" onclick="AuraPulse.refresh(true)">↻ 同步狀態</span>
             </div>
             <div class="pulse-lines-grid" id="pulse-lines-grid"></div>
         </section>
@@ -181,7 +190,7 @@
     </nav>
 </div>
 
-<!-- Modal 1: 車站全息透視艙 (Station Hologram Modal) -->
+<!-- Modal 1: 車站全息透視艙 (3-Tab Station Hologram Modal) -->
 <div class="aura-modal-backdrop hidden" id="hologram-modal" onclick="if(event.target===this)AuraHub.closeHologram()">
     <div class="aura-modal-sheet" id="hologram-sheet-content"></div>
 </div>
