@@ -1,3 +1,5 @@
+
+
 // ==========================================
 // MTR Metro Ultra - 全網資料庫 (車站、路線、轉乘指引、出口與設施)
 // ==========================================
@@ -91,7 +93,7 @@ const TRANSFER_GUIDE = {
         'default': { walk: 3.5, crossPlatform: false, tip: '經轉乘大堂行人通道連接觀塘綫與東鐵綫（建議車廂：觀塘綫第 3-5 卡 / 東鐵綫第 5-6 卡）' }
     },
     'TAW': {
-        'default': { walk: 1.5, crossPlatform: false, tip: '南行往九龍方向設月台跨橋直達轉乘（建議車廂：第 4-6 卡）' }
+        'default': { walk: 2.5, crossPlatform: false, tip: '經大堂或跨橋轉乘（建議車廂：第 4-6 卡）' }
     },
     'HUH': {
         'default': { walk: 2.0, crossPlatform: false, tip: '上下層月台直接扶手電梯轉乘東鐵綫與屯馬綫（建議車廂：第 4-6 卡）' }
@@ -225,4 +227,3 @@ const MtrData = {
         'SOH': { name: '海怡半島', en: 'South Horizons', lat: 22.2430, lon: 114.1450, toilet: true, baby: true, first: '06:00', last: '00:45', exits: ['A: 海怡廣場東翼', 'B: 海怡西商場', 'C: 新海怡廣場 (Horizon Plaza Outlet)'] }
     }
 };
-

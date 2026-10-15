@@ -1,6 +1,5 @@
 /* =========================================================
-   MTR AURA OS 3.0 PRO - Spatial Glass, Bento Grid & Cockpit UI
-   Deeply Optimized Flagship Edition
+   MTR AURA OS 3.6 PRO - Clean Visual Hierarchy & Spatial UI
    ========================================================= */
 * {
     box-sizing: border-box;
@@ -14,45 +13,34 @@
 }
 
 :root {
-    --bg-deep: #050811;
-    --bg-surface: #0B1120;
-    --bento-bg: rgba(17, 25, 44, 0.78);
-    --bento-hover: rgba(26, 38, 66, 0.90);
-    --glass-heavy: rgba(10, 15, 28, 0.90);
+    --bg-deep: #060913;
+    --bg-surface: #0F172A;
+    --bento-bg: rgba(18, 27, 48, 0.82);
+    --bento-hover: rgba(28, 40, 68, 0.92);
+    --glass-heavy: rgba(11, 17, 32, 0.92);
     --glass-border: rgba(255, 255, 255, 0.10);
     --glass-highlight: rgba(255, 255, 255, 0.18);
     --chip-inactive-bg: rgba(255, 255, 255, 0.07);
     --text-main: #F8FAFC;
     --text-sub: #94A3B8;
     --text-muted: #64748B;
-    --aura-cyan: #00F0FF;
+    --aura-cyan: #38BDF8;
     --aura-blue: #3B82F6;
     --aura-indigo: #6366F1;
     --aura-emerald: #10B981;
     --aura-amber: #F59E0B;
     --aura-rose: #F43F5E;
     --pids-bg: #030712;
-    --pids-pane: #060B18;
-    --shadow-elevated: 0 16px 40px -8px rgba(0, 0, 0, 0.65);
-
-    --mtr-ktl: #00af41;
-    --mtr-twl: #e2231a;
-    --mtr-isl: #0071ce;
-    --mtr-tcl: #f38b00;
-    --mtr-tko: #8d3685;
-    --mtr-eal: #53b7e8;
-    --mtr-tml: #9a3820;
-    --mtr-sil: #b6bd00;
-    --mtr-ael: #00838f;
-    --mtr-drl: #f550a1;
+    --pids-pane: #070D1C;
+    --shadow-elevated: 0 14px 34px -8px rgba(0, 0, 0, 0.65);
 }
 
 body.light-mode {
     --bg-deep: #F1F5F9;
     --bg-surface: #FFFFFF;
-    --bento-bg: rgba(255, 255, 255, 0.92);
+    --bento-bg: rgba(255, 255, 255, 0.94);
     --bento-hover: rgba(255, 255, 255, 0.99);
-    --glass-heavy: rgba(255, 255, 255, 0.94);
+    --glass-heavy: rgba(255, 255, 255, 0.95);
     --glass-border: rgba(15, 23, 42, 0.09);
     --glass-highlight: rgba(15, 23, 42, 0.15);
     --chip-inactive-bg: rgba(15, 23, 42, 0.06);
@@ -61,8 +49,8 @@ body.light-mode {
     --text-muted: #94A3B8;
     --aura-cyan: #0284C7;
     --pids-bg: #0F172A;
-    --pids-pane: #090F1E;
-    --shadow-elevated: 0 12px 32px -6px rgba(15, 23, 42, 0.12);
+    --pids-pane: #0B1324;
+    --shadow-elevated: 0 12px 28px -6px rgba(15, 23, 42, 0.12);
 }
 
 html, body {
@@ -72,26 +60,25 @@ html, body {
     height: 100%;
     background: var(--bg-deep);
     color: var(--text-main);
-    font-family: "Inter", "Plus Jakarta Sans", "PingFang HK", "Microsoft JhengHei", -apple-system, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang HK", "Helvetica Neue", sans-serif;
     overflow: hidden;
     overscroll-behavior: none;
-    transition: background 0.3s ease, color 0.3s ease;
+    transition: background 0.25s ease, color 0.25s ease;
 }
 
 .hidden { display: none !important; }
 
-/* Aurora Mesh Background */
 #aurora-mesh {
     position: fixed;
     inset: 0;
     pointer-events: none;
     z-index: 0;
     background:
-        radial-gradient(circle at 15% 12%, rgba(59, 130, 246, 0.20) 0%, transparent 45%),
-        radial-gradient(circle at 85% 18%, rgba(226, 35, 26, 0.15) 0%, transparent 42%),
-        radial-gradient(circle at 50% 88%, rgba(16, 185, 129, 0.14) 0%, transparent 50%);
+        radial-gradient(circle at 15% 10%, rgba(56, 189, 248, 0.15) 0%, transparent 42%),
+        radial-gradient(circle at 85% 16%, rgba(226, 35, 26, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.12) 0%, transparent 48%);
 }
-body.light-mode #aurora-mesh { opacity: 0.45; }
+body.light-mode #aurora-mesh { opacity: 0.4; }
 
 #aura-shell {
     position: relative;
@@ -102,24 +89,24 @@ body.light-mode #aurora-mesh { opacity: 0.45; }
     height: 100%;
 }
 
-/* Floating Glass Toast */
+/* Toast */
 #aura-toast {
     position: fixed;
-    top: max(64px, calc(env(safe-area-inset-top) + 52px));
+    top: max(60px, calc(env(safe-area-inset-top) + 48px));
     left: 50%;
-    transform: translateX(-50%) translateY(-20px);
+    transform: translateX(-50%) translateY(-16px);
     background: var(--glass-heavy);
     backdrop-filter: blur(20px);
     border: 1px solid var(--aura-cyan);
     color: var(--text-main);
     padding: 8px 16px;
     border-radius: 999px;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     font-weight: 800;
     z-index: 6000;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.25s ease, transform 0.25s ease;
+    transition: opacity 0.22s ease, transform 0.22s ease;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
     white-space: nowrap;
 }
@@ -129,93 +116,72 @@ body.light-mode #aurora-mesh { opacity: 0.45; }
 }
 
 /* =========================================================
-   TOP DYNAMIC ISLAND HEADER BAR
+   TOP HEADER BAR (Clean & Uncluttered)
    ========================================================= */
 .dynamic-island-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: max(12px, env(safe-area-inset-top)) 16px 10px 16px;
+    padding: max(10px, env(safe-area-inset-top)) 16px 8px 16px;
     z-index: 200;
     flex-shrink: 0;
 }
 .aura-brand {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
 }
 .aura-orb-logo {
-    width: 36px;
-    height: 36px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #FF2E4C 0%, #7928CA 50%, #00D2FF 100%);
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #FF2E4C 0%, #7928CA 55%, #00D2FF 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
     font-weight: 900;
-    font-size: 1.05rem;
-    box-shadow: 0 4px 16px rgba(255, 46, 76, 0.4);
-}
-.aura-brand-text {
-    display: flex;
-    flex-direction: column;
+    font-size: 0.98rem;
+    box-shadow: 0 4px 12px rgba(255, 46, 76, 0.35);
 }
 .aura-brand-title {
-    font-size: 0.92rem;
+    font-size: 0.95rem;
     font-weight: 900;
-    letter-spacing: 0.5px;
-    background: linear-gradient(90deg, var(--text-main), var(--aura-cyan));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-.aura-brand-sub {
-    font-size: 0.65rem;
-    font-weight: 600;
-    color: var(--text-sub);
-    letter-spacing: 0.6px;
-    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.4px;
+    color: var(--text-main);
 }
 
 .island-pill {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: var(--glass-heavy);
-    backdrop-filter: blur(20px);
+    gap: 7px;
+    background: var(--bento-bg);
     border: 1px solid var(--glass-border);
-    padding: 6px 13px;
+    padding: 5px 12px;
     border-radius: 999px;
     cursor: pointer;
-    box-shadow: var(--shadow-elevated);
-    transition: transform 0.2s, border-color 0.2s;
 }
-.island-pill:active { transform: scale(0.95); }
 .island-dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background: var(--aura-emerald);
     box-shadow: 0 0 8px var(--aura-emerald);
-    animation: islandPulse 2s infinite;
 }
 .island-pill.alert .island-dot {
     background: var(--aura-rose);
     box-shadow: 0 0 10px var(--aura-rose);
 }
-@keyframes islandPulse {
-    0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.3); opacity: 0.6; }
-}
 .island-text {
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: 0.74rem;
+    font-weight: 800;
     color: var(--text-main);
 }
 .header-icon-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 12px;
+    height: 32px;
+    min-width: 32px;
+    padding: 0 8px;
+    border-radius: 10px;
     background: var(--bento-bg);
     border: 1px solid var(--glass-border);
     color: var(--text-main);
@@ -223,10 +189,8 @@ body.light-mode #aurora-mesh { opacity: 0.45; }
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 1rem;
-    transition: transform 0.15s;
+    font-size: 0.88rem;
 }
-.header-icon-btn:active { transform: scale(0.9); }
 
 /* =========================================================
    VIEWPORT & VIEWS
@@ -244,17 +208,17 @@ body.light-mode #aurora-mesh { opacity: 0.45; }
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 6px 16px calc(92px + env(safe-area-inset-bottom)) 16px;
+    padding: 6px 16px calc(88px + env(safe-area-inset-bottom)) 16px;
     opacity: 0;
     pointer-events: none;
-    transform: scale(0.98) translateY(10px);
-    transition: opacity 0.26s cubic-bezier(0.16, 1, 0.3, 1), transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translateY(6px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
     visibility: hidden;
 }
 .aura-view.active {
     opacity: 1;
     pointer-events: auto;
-    transform: scale(1) translateY(0);
+    transform: translateY(0);
     visibility: visible;
 }
 #view-cockpit {
@@ -263,135 +227,80 @@ body.light-mode #aurora-mesh { opacity: 0.45; }
 }
 
 /* =========================================================
-   TAB 1: AURORA BENTO DASHBOARD (極光通勤中心)
+   TAB 1: 極光看板 (Clean PIDS Focus)
    ========================================================= */
-.hero-radar-bento {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.22) 0%, rgba(99, 102, 241, 0.18) 50%, rgba(16, 185, 129, 0.15) 100%);
-    border: 1px solid rgba(59, 130, 246, 0.35);
-    border-radius: 24px;
-    padding: 16px 18px;
+.quick-radar-strip {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(16, 185, 129, 0.12));
+    border: 1px solid rgba(56, 189, 248, 0.28);
+    border-radius: 20px;
+    padding: 12px 14px;
     margin-bottom: 14px;
-    position: relative;
-    overflow: hidden;
-    box-shadow: var(--shadow-elevated);
 }
-.hero-top-row {
+.quick-radar-row {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
+    align-items: center;
+    gap: 8px;
 }
-.hero-greeting {
-    font-size: 0.72rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--aura-cyan);
-    margin-bottom: 4px;
-}
-.hero-nearest-title {
-    font-size: 1.32rem;
+.quick-nearest-sta {
+    font-size: 1.05rem;
     font-weight: 900;
-    line-height: 1.15;
 }
-.hero-nearest-sub {
-    font-size: 0.78rem;
-    color: var(--text-sub);
-    margin-top: 4px;
-    line-height: 1.4;
-}
-.radar-btn {
-    background: linear-gradient(135deg, #0EA5E9, #2563EB);
-    color: #fff;
-    border: none;
-    border-radius: 14px;
-    padding: 9px 13px;
-    font-size: 0.76rem;
-    font-weight: 800;
-    cursor: pointer;
-    box-shadow: 0 6px 18px rgba(14, 165, 233, 0.35);
-    white-space: nowrap;
-    transition: transform 0.15s;
-}
-.radar-btn:active { transform: scale(0.94); }
-
 .commute-pills-scroll {
     display: flex;
     gap: 8px;
     overflow-x: auto;
-    margin-top: 12px;
-    padding-top: 12px;
+    margin-top: 10px;
+    padding-top: 10px;
     border-top: 1px solid var(--glass-border);
 }
 .commute-pill {
-    background: rgba(0, 0, 0, 0.28);
+    background: rgba(0, 0, 0, 0.26);
     border: 1px solid var(--glass-border);
-    border-radius: 14px;
-    padding: 8px 12px;
+    border-radius: 12px;
+    padding: 6px 11px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     cursor: pointer;
     flex-shrink: 0;
-    position: relative;
-    transition: transform 0.15s;
-}
-.commute-pill:active { transform: scale(0.96); }
-body.light-mode .commute-pill {
-    background: rgba(255, 255, 255, 0.82);
-}
-.commute-pill-route {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     font-weight: 800;
 }
-.commute-pill-meta {
-    font-size: 0.74rem;
-    color: var(--aura-emerald);
-    font-weight: 800;
-}
-.commute-del-btn {
-    font-size: 0.65rem;
-    color: var(--text-sub);
-    padding: 2px 4px;
-    border-radius: 6px;
-}
+body.light-mode .commute-pill { background: rgba(255, 255, 255, 0.85); }
 
 .bento-section-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin: 14px 2px 10px 2px;
+    margin: 10px 2px 10px 2px;
 }
 .bento-section-label {
-    font-size: 0.76rem;
+    font-size: 0.78rem;
     font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
     color: var(--text-sub);
 }
 .bento-action-link {
-    font-size: 0.76rem;
+    font-size: 0.78rem;
     font-weight: 800;
     color: var(--aura-cyan);
     cursor: pointer;
 }
 
-/* Dual-Platform PIDS Station Cards */
 .pids-bento-list {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
 }
 .pids-station-card {
     background: var(--bento-bg);
-    backdrop-filter: blur(20px);
     border: 1px solid var(--glass-border);
-    border-radius: 24px;
+    border-radius: 22px;
     overflow: hidden;
     box-shadow: var(--shadow-elevated);
 }
 .pids-card-header {
-    padding: 14px 16px 12px 16px;
+    padding: 12px 14px 10px 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -405,30 +314,9 @@ body.light-mode .commute-pill {
     right: 0;
     height: 4px;
 }
-.pids-sta-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.pids-sta-badge {
-    padding: 3px 8px;
-    border-radius: 7px;
-    color: #fff;
-    font-weight: 800;
-    font-size: 0.7rem;
-}
 .pids-sta-name {
-    font-size: 1.2rem;
+    font-size: 1.18rem;
     font-weight: 900;
-}
-.pids-sta-en {
-    font-size: 0.75rem;
-    color: var(--text-sub);
-    font-weight: 600;
-}
-.pids-header-btns {
-    display: flex;
-    gap: 6px;
 }
 .pids-icon-btn {
     padding: 5px 10px;
@@ -436,20 +324,17 @@ body.light-mode .commute-pill {
     background: var(--chip-inactive-bg);
     border: 1px solid var(--glass-border);
     color: var(--text-main);
-    font-size: 0.72rem;
-    font-weight: 700;
+    font-size: 0.74rem;
+    font-weight: 800;
     cursor: pointer;
 }
-.pids-icon-btn:active { opacity: 0.75; }
 
-/* 2-Column Split Platform Board */
 .pids-dual-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.07);
     color: #F8FAFC;
     gap: 1px;
-    border-bottom: 1px solid var(--glass-border);
 }
 .pids-dir-pane {
     background: var(--pids-pane);
@@ -458,108 +343,64 @@ body.light-mode .commute-pill {
     flex-direction: column;
     justify-content: space-between;
 }
-.pids-dir-top {
+.pids-dest-row {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 6px;
-}
-.pids-dir-tag {
-    font-size: 0.64rem;
-    font-weight: 800;
-    color: #38BDF8;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    align-items: center;
 }
 .pids-dest-main {
-    font-size: 0.96rem;
-    font-weight: 800;
-    color: #fff;
-    margin-top: 2px;
-}
-.pids-plat-circle {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: #1E293B;
-    border: 1.5px solid #38BDF8;
-    color: #38BDF8;
-    font-size: 0.72rem;
+    font-size: 0.94rem;
     font-weight: 900;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+    color: #FFFFFF;
+}
+.pids-plat-badge {
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(56, 189, 248, 0.16);
+    color: #38BDF8;
+    border: 1px solid rgba(56, 189, 248, 0.4);
 }
 .pids-eta-hero {
+    margin: 8px 0 6px 0;
     display: flex;
     align-items: baseline;
-    justify-content: space-between;
-    margin: 4px 0 6px 0;
+    gap: 4px;
 }
 .pids-eta-num {
-    font-size: 2.05rem;
+    font-size: 2.15rem;
     font-weight: 900;
     color: #34D399;
     line-height: 1;
     font-variant-numeric: tabular-nums;
 }
 .pids-eta-num.arriving {
-    font-size: 1.2rem;
+    font-size: 1.35rem;
     color: #FBBF24;
-    animation: islandPulse 1.2s infinite;
 }
 .pids-eta-num.terminus {
-    font-size: 0.92rem;
+    font-size: 0.95rem;
     color: #94A3B8;
-    font-weight: 700;
 }
 .pids-eta-unit {
-    font-size: 0.74rem;
+    font-size: 0.78rem;
     color: #94A3B8;
-    font-weight: 700;
-    margin-left: 3px;
+    font-weight: 800;
 }
-.pids-prog-track {
-    width: 100%;
-    height: 3px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
-    margin-bottom: 8px;
-    overflow: hidden;
-}
-.pids-prog-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #34D399, #38BDF8);
-    border-radius: 2px;
-    transition: width 0.4s ease;
-}
-.pids-next-list {
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+.pids-sub-eta {
+    font-size: 0.72rem;
+    color: #94A3B8;
     padding-top: 6px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.pids-next-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.71rem;
-    color: #94A3B8;
-}
-.pids-next-row b { color: #E2E8F0; }
-
-.pids-card-footer {
-    padding: 8px 14px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(255, 255, 255, 0.02);
-    font-size: 0.73rem;
-}
+.pids-sub-eta b { color: #E2E8F0; }
 
 /* =========================================================
-   TAB 2: SPATIAL ROUTE COCKPIT (全螢幕空間導航艙)
+   TAB 2: 路線導航艙 (Clear Map + First-Glance Route Sheet)
    ========================================================= */
 #aura-map-canvas {
     position: absolute;
@@ -571,10 +412,9 @@ body.light-mode .commute-pill {
 }
 .leaflet-control-attribution, .leaflet-control-zoom { display: none !important; }
 
-/* Top Floating Cockpit Search Capsule */
 #cockpit-top-capsule {
     position: absolute;
-    top: 10px;
+    top: 8px;
     left: 50%;
     transform: translateX(-50%);
     width: calc(100% - 24px);
@@ -582,114 +422,109 @@ body.light-mode .commute-pill {
     background: var(--glass-heavy);
     backdrop-filter: blur(24px);
     border: 1px solid var(--glass-highlight);
-    border-radius: 22px;
-    padding: 11px;
+    border-radius: 20px;
+    padding: 9px 10px;
     z-index: 1000;
     box-shadow: var(--shadow-elevated);
 }
 .capsule-inputs-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
 }
 .capsule-station-btn {
     flex: 1;
     background: var(--chip-inactive-bg);
     border: 1.5px solid var(--glass-border);
-    border-radius: 14px;
-    padding: 7px 11px;
+    border-radius: 13px;
+    padding: 6px 10px;
     cursor: pointer;
-    transition: all 0.2s;
     overflow: hidden;
 }
 .capsule-station-btn.active-slot {
     border-color: var(--aura-cyan);
-    background: rgba(0, 240, 255, 0.09);
+    background: rgba(56, 189, 248, 0.10);
 }
 .capsule-slot-tag {
     font-size: 0.62rem;
     font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
     color: var(--text-sub);
     display: flex;
     justify-content: space-between;
 }
 .capsule-slot-val {
-    font-size: 0.95rem;
-    font-weight: 800;
-    margin-top: 2px;
+    font-size: 0.96rem;
+    font-weight: 900;
+    margin-top: 1px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 .capsule-swap-circle {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     background: linear-gradient(135deg, var(--aura-blue), var(--aura-indigo));
     color: #fff;
     border: none;
-    font-size: 1rem;
-    font-weight: 800;
+    font-size: 0.95rem;
+    font-weight: 900;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     flex-shrink: 0;
 }
 
-/* 3-Strategy Comparison Bar */
 .strategy-cards-row {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 6px;
-    margin-top: 8px;
+    margin-top: 7px;
 }
 .strategy-card {
     background: var(--chip-inactive-bg);
-    border: 1px solid var(--glass-border);
+    border: 1.5px solid var(--glass-border);
     border-radius: 12px;
-    padding: 6px 6px;
+    padding: 5px 4px;
     text-align: center;
     cursor: pointer;
-    transition: all 0.2s;
+    overflow: hidden;
 }
 .strategy-card.active {
     background: rgba(59, 130, 246, 0.22);
     border-color: var(--aura-cyan);
 }
 .strategy-title {
-    font-size: 0.7rem;
-    font-weight: 800;
+    font-size: 0.71rem;
+    font-weight: 900;
     color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .strategy-sub {
-    font-size: 0.64rem;
-    color: var(--text-sub);
-    margin-top: 2px;
+    font-size: 0.65rem;
+    color: var(--aura-cyan);
+    font-weight: 800;
+    margin-top: 1px;
 }
 
-/* Floating Right Map Zoom & Layer Controls */
 .cockpit-map-tools {
     position: absolute;
-    right: 14px;
-    top: 145px;
+    right: 12px;
+    top: 132px;
     z-index: 900;
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: 6px;
 }
 .cockpit-tool-btn {
-    width: 38px;
-    height: 38px;
-    border-radius: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
     background: var(--glass-heavy);
-    backdrop-filter: blur(16px);
     border: 1px solid var(--glass-border);
     color: var(--text-main);
-    font-size: 0.98rem;
-    font-weight: 800;
+    font-size: 0.92rem;
+    font-weight: 900;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -697,117 +532,57 @@ body.light-mode .commute-pill {
     box-shadow: var(--shadow-elevated);
 }
 
-/* Slide-Up Cockpit Route Sheet (3 Snap States: mini, open, tall) */
+/* Route Sheet: Lower default height (45vh) so map is clearly visible! */
 #cockpit-route-sheet {
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
-    max-height: 56vh;
+    max-height: 46vh;
     background: var(--glass-heavy);
     backdrop-filter: blur(28px);
     border-top: 1px solid var(--glass-highlight);
-    border-radius: 26px 26px 0 0;
+    border-radius: 24px 24px 0 0;
     z-index: 1500;
     display: flex;
     flex-direction: column;
-    padding-bottom: calc(82px + env(safe-area-inset-bottom));
+    padding-bottom: calc(78px + env(safe-area-inset-bottom));
     transform: translateY(115%);
-    transition: transform 0.36s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.3s ease;
-    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.65);
+    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.28s ease;
+    box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.6);
 }
 #cockpit-route-sheet.open { transform: translateY(0); }
-#cockpit-route-sheet.mini { max-height: 21vh; }
-#cockpit-route-sheet.tall { max-height: 86vh; }
+#cockpit-route-sheet.mini { max-height: 19vh; }
+#cockpit-route-sheet.tall { max-height: 82vh; }
 
-.sheet-top-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 16px 4px 16px;
-}
-.sheet-pill-handle {
-    width: 44px;
-    height: 5px;
-    background: rgba(148, 163, 184, 0.45);
-    border-radius: 3px;
-    cursor: pointer;
-}
-
-/* 4-Ticket Fare Matrix Strip */
-.fare-matrix-grid {
+/* 3-Metric Hero Summary Strip */
+.route-hero-metrics {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-    padding: 6px 16px 8px 16px;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    gap: 8px;
+    padding: 6px 14px 8px 14px;
     border-bottom: 1px solid var(--glass-border);
 }
-.fare-cell {
+.metric-box {
     background: var(--chip-inactive-bg);
     border: 1px solid var(--glass-border);
-    border-radius: 11px;
-    padding: 5px 4px;
-    text-align: center;
+    border-radius: 13px;
+    padding: 7px 10px;
 }
-.fare-cell.highlight {
-    background: rgba(16, 185, 129, 0.16);
-    border-color: rgba(16, 185, 129, 0.45);
-}
-.fare-cell-label {
-    font-size: 0.61rem;
+.metric-label {
+    font-size: 0.64rem;
     color: var(--text-sub);
-    font-weight: 700;
+    font-weight: 800;
 }
-.fare-cell-val {
-    font-size: 0.92rem;
+.metric-val {
+    font-size: 1.15rem;
     font-weight: 900;
-    color: var(--text-main);
-    margin-top: 1px;
-}
-.fare-cell.highlight .fare-cell-val { color: #10B981; }
-
-/* Train Boarding Consist Visualizer */
-.train-consist-box {
-    margin: 8px 16px 4px 16px;
-    padding: 9px 12px;
-    background: rgba(59, 130, 246, 0.10);
-    border: 1px solid rgba(59, 130, 246, 0.28);
-    border-radius: 14px;
-}
-.train-consist-title {
-    font-size: 0.7rem;
-    font-weight: 800;
-    color: var(--aura-cyan);
-    margin-bottom: 6px;
-    display: flex;
-    justify-content: space-between;
-}
-.train-cars-row {
-    display: flex;
-    gap: 4px;
-}
-.train-car-unit {
-    flex: 1;
-    height: 23px;
-    border-radius: 6px;
-    background: var(--chip-inactive-bg);
-    border: 1px solid var(--glass-border);
-    font-size: 0.66rem;
-    font-weight: 800;
-    color: var(--text-sub);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.train-car-unit.best-car {
-    background: linear-gradient(135deg, #10B981, #059669);
-    color: #fff;
-    border-color: #34D399;
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.45);
+    margin-top: 2px;
+    white-space: nowrap;
 }
 
 /* =========================================================
-   TAB 3: STATION HOLOGRAM HUB (車站全息百科 Bento Grid)
+   TAB 3: 車站全息 (Clean 2-Col Grid + Centered Spatial Modal)
    ========================================================= */
 .hub-bento-grid {
     display: grid;
@@ -818,48 +593,26 @@ body.light-mode .commute-pill {
 .hub-station-card {
     background: var(--bento-bg);
     border: 1px solid var(--glass-border);
-    border-radius: 18px;
+    border-radius: 16px;
     padding: 12px 14px;
     cursor: pointer;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    gap: 8px;
-    transition: transform 0.18s;
+    gap: 6px;
 }
-.hub-station-card:active { transform: scale(0.96); }
-.hub-card-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-}
-.hub-sta-zh { font-size: 1.06rem; font-weight: 900; }
-.hub-sta-en { font-size: 0.69rem; color: var(--text-sub); }
-.hub-code-pill {
+.hub-sta-zh { font-size: 1.08rem; font-weight: 900; }
+.hub-sta-en { font-size: 0.7rem; color: var(--text-sub); }
+.hub-line-dots { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.hub-line-tag {
     font-size: 0.64rem;
     font-weight: 800;
-    padding: 2px 6px;
-    border-radius: 6px;
-    background: var(--chip-inactive-bg);
-    color: var(--text-sub);
-}
-.hub-card-bottom {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.hub-line-dots { display: flex; gap: 4px; flex-wrap: wrap; }
-.hub-line-tag {
-    font-size: 0.61rem;
-    font-weight: 800;
     color: #fff;
-    padding: 2px 6px;
-    border-radius: 5px;
+    padding: 2px 7px;
+    border-radius: 6px;
 }
-.hub-fac-icons { font-size: 0.72rem; opacity: 0.85; }
 
 /* =========================================================
-   TAB 4: NETWORK PULSE & HKO WEATHER (全網脈搏 2-Col Grid)
+   TAB 4: 全網脈搏
    ========================================================= */
 .pulse-lines-grid {
     display: grid;
@@ -870,11 +623,9 @@ body.light-mode .commute-pill {
 .pulse-line-bento {
     background: var(--bento-bg);
     border: 1px solid var(--glass-border);
-    border-radius: 18px;
-    padding: 13px;
+    border-radius: 16px;
+    padding: 12px 14px;
     cursor: pointer;
-    position: relative;
-    overflow: hidden;
 }
 .pulse-line-bento.delayed {
     background: rgba(244, 63, 94, 0.16);
@@ -882,21 +633,20 @@ body.light-mode .commute-pill {
 }
 
 /* =========================================================
-   FLOATING SPATIAL BOTTOM DOCK
+   BOTTOM DOCK
    ========================================================= */
 #aura-spatial-dock {
     position: fixed;
-    bottom: max(12px, env(safe-area-inset-bottom));
+    bottom: max(10px, env(safe-area-inset-bottom));
     left: 50%;
     transform: translateX(-50%);
     width: calc(100% - 28px);
-    max-width: 450px;
-    height: 64px;
+    max-width: 440px;
+    height: 60px;
     background: var(--glass-heavy);
-    backdrop-filter: blur(26px);
-    -webkit-backdrop-filter: blur(26px);
+    backdrop-filter: blur(24px);
     border: 1px solid var(--glass-highlight);
-    border-radius: 32px;
+    border-radius: 30px;
     display: flex;
     align-items: center;
     justify-content: space-around;
@@ -906,8 +656,8 @@ body.light-mode .commute-pill {
 }
 .dock-item {
     flex: 1;
-    height: 50px;
-    border-radius: 25px;
+    height: 46px;
+    border-radius: 23px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -915,37 +665,41 @@ body.light-mode .commute-pill {
     gap: 2px;
     cursor: pointer;
     color: var(--text-sub);
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .dock-item.active {
     background: linear-gradient(135deg, #0EA5E9, #4F46E5);
     color: #fff;
-    box-shadow: 0 4px 16px rgba(14, 165, 233, 0.45);
 }
-.dock-icon { font-size: 1.15rem; line-height: 1; }
-.dock-label { font-size: 0.66rem; font-weight: 800; }
+.dock-icon { font-size: 1.1rem; line-height: 1; }
+.dock-label { font-size: 0.65rem; font-weight: 800; }
 
-/* Modals */
+/* =========================================================
+   CENTERED SPATIAL MODALS (No Empty Black Void!)
+   ========================================================= */
 .aura-modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(3, 7, 18, 0.78);
-    backdrop-filter: blur(16px);
+    background: rgba(3, 7, 18, 0.58);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     z-index: 4500;
     display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
 }
 .aura-modal-sheet {
+    width: 100%;
+    max-width: 450px;
+    max-height: 82vh;
     background: var(--bg-surface);
-    border-top: 1px solid var(--glass-highlight);
-    border-radius: 28px 28px 0 0;
-    max-height: 88vh;
+    border: 1px solid var(--glass-highlight);
+    border-radius: 26px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding: 16px 16px max(20px, env(safe-area-inset-bottom)) 16px;
-    box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.7);
+    padding: 16px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
 }
 .holo-tab-bar {
     display: flex;
@@ -953,15 +707,15 @@ body.light-mode .commute-pill {
     margin: 10px 0;
     background: var(--chip-inactive-bg);
     padding: 4px;
-    border-radius: 14px;
+    border-radius: 12px;
 }
 .holo-tab-btn {
     flex: 1;
     text-align: center;
     padding: 7px 4px;
-    font-size: 0.75rem;
+    font-size: 0.76rem;
     font-weight: 800;
-    border-radius: 10px;
+    border-radius: 9px;
     color: var(--text-sub);
     cursor: pointer;
 }
@@ -970,7 +724,7 @@ body.light-mode .commute-pill {
     color: #fff;
 }
 
-/* Map Station Nodes */
+/* Map Nodes */
 .custom-div-icon { z-index: 400 !important; cursor: pointer; }
 .mtr-station-marker {
     background-color: #fff;

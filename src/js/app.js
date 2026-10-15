@@ -1,5 +1,5 @@
 // =========================================================
-// MTR AURA OS 3.0 PRO - Spatial Transit & Dual-PIDS Engine
+// MTR AURA OS 3.6 PRO - Clean Hierarchy & State-Graph Routing
 // =========================================================
 
 const AuraToast = {
@@ -10,12 +10,12 @@ const AuraToast = {
         el.innerText = msg;
         el.classList.add('show');
         clearTimeout(this.timer);
-        this.timer = setTimeout(() => el.classList.remove('show'), 2400);
+        this.timer = setTimeout(() => el.classList.remove('show'), 2200);
     }
 };
 
 async function fetchWithTimeout(resource, options = {}) {
-    const { timeout = 3800 } = options;
+    const { timeout = 3500 } = options;
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
     try {
@@ -52,32 +52,17 @@ function calcEtaMin(t, nowObj) {
     return Math.max(0, Math.floor((t.dateObj - nowObj) / 60000));
 }
 
-// 精準判斷該站是否為某路綫該方向的落客終點站
 function isTerminusForDir(lineId, staId, dirKey) {
     const baseLine = lineId.split('_')[0];
     const upTermini = {
-        'TWL': ['TSW'],
-        'KTL': ['TIK'],
-        'ISL': ['CHW'],
-        'TKO': ['POA', 'LHP'],
-        'EAL': ['LOW', 'LMC'],
-        'TML': ['WUM'],
-        'TCL': ['TUC'],
-        'AEL': ['AWE'],
-        'DRL': ['DIS'],
-        'SIL': ['SOH']
+        'TWL': ['TSW'], 'KTL': ['TIK'], 'ISL': ['CHW'], 'TKO': ['POA', 'LHP'],
+        'EAL': ['LOW', 'LMC'], 'TML': ['WUM'], 'TCL': ['TUC'], 'AEL': ['AWE'],
+        'DRL': ['DIS'], 'SIL': ['SOH']
     };
     const downTermini = {
-        'TWL': ['CEN'],
-        'KTL': ['WHA'],
-        'ISL': ['KET'],
-        'TKO': ['NOP'],
-        'EAL': ['ADM'],
-        'TML': ['TUM'],
-        'TCL': ['HOK'],
-        'AEL': ['HOK'],
-        'DRL': ['SUN'],
-        'SIL': ['ADM']
+        'TWL': ['CEN'], 'KTL': ['WHA'], 'ISL': ['KET'], 'TKO': ['NOP'],
+        'EAL': ['ADM'], 'TML': ['TUM'], 'TCL': ['HOK'], 'AEL': ['HOK'],
+        'DRL': ['SUN'], 'SIL': ['ADM']
     };
     if (dirKey === 'UP') return (upTermini[baseLine] || []).includes(staId);
     if (dirKey === 'DOWN') return (downTermini[baseLine] || []).includes(staId);
@@ -96,7 +81,7 @@ function makeSimulatedSchedule(lineId, staId) {
 
     const buildList = (dest, plat, dirKey) => {
         if (isTerminusForDir(baseLine, staId, dirKey)) return [];
-        return [0, 1, 2, 3].map(i => {
+        return [0, 1, 2].map(i => {
             const m = seed + i * hw;
             const d = new Date(now.getTime() + m * 60000);
             const pad = n => String(n).padStart(2, '0');
@@ -124,7 +109,7 @@ async function fetchLiveMtrEta(lineId, staId) {
     const apiLine = getApiLineId(lineId);
     const apiSta = getApiId(staId);
     try {
-        const res = await fetchWithTimeout(`https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${apiLine}&sta=${apiSta}&lang=TC`, { timeout: 3500 });
+        const res = await fetchWithTimeout(`https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${apiLine}&sta=${apiSta}&lang=TC`, { timeout: 3200 });
         if (res.ok) {
             const json = await res.json();
             const sched = json.data && json.data[`${apiLine}-${apiSta}`];
@@ -136,24 +121,12 @@ async function fetchLiveMtrEta(lineId, staId) {
     return makeSimulatedSchedule(lineId, staId);
 }
 
-// 1. Theme & Live Clock
+// 1. Theme
 const AuraTheme = {
     isLight: false,
     init() {
         try { this.isLight = localStorage.getItem('mtr_aura_theme') === 'light'; } catch (e) {}
         this.apply();
-        const tick = () => {
-            const now = new Date();
-            const cl = document.getElementById('aura-live-clock');
-            if (cl) cl.innerText = `HKT ${now.toTimeString().slice(0, 8)}`;
-            const hr = now.getHours();
-            const gr = document.getElementById('hero-greeting-text');
-            if (gr) {
-                gr.innerText = hr < 12 ? '🌅 早安香港 • 晨間極光通勤雷達' : (hr < 18 ? '☀️ 午安香港 • 城市極光空間領航' : '🌙 晚安香港 • 夜歸極速月台雷達');
-            }
-        };
-        tick();
-        setInterval(tick, 1000);
     },
     toggle() {
         this.isLight = !this.isLight;
@@ -169,7 +142,7 @@ const AuraTheme = {
     }
 };
 
-// 2. Spatial Navigation
+// 2. Navigation
 const AuraNav = {
     currentTab: 0,
     switchTab(idx) {
@@ -178,13 +151,13 @@ const AuraNav = {
         document.querySelectorAll('.dock-item').forEach((d, i) => d.classList.toggle('active', i === idx));
         if (idx === 0) AuraDashboard.refreshAllBoards(false);
         if (idx === 1) {
-            setTimeout(() => AuraCockpit.invalidateMap(), 100);
-            setTimeout(() => AuraCockpit.invalidateMap(), 320);
+            setTimeout(() => AuraCockpit.invalidateMap(), 80);
+            setTimeout(() => AuraCockpit.invalidateMap(), 280);
         }
     }
 };
 
-// 3. Tab 0: Aurora Bento Dashboard (Dual-Platform PIDS Live Boards)
+// 3. Tab 0: Clean Dual-Platform PIDS Dashboard
 const AuraDashboard = {
     monitored: [],
     commutes: [],
@@ -211,9 +184,9 @@ const AuraDashboard = {
         } catch (e) {}
         if (!this.commutes || this.commutes.length === 0) {
             this.commutes = [
-                { from: 'KOB', to: 'CEN', label: '💼 上班過海' },
-                { from: 'ADM', to: 'TST', label: '🏠 維港通勤' },
-                { from: 'TAW', to: 'MOK', label: '⚡ 新界出九龍' }
+                { from: 'KOB', to: 'FAN' },
+                { from: 'KOB', to: 'CEN' },
+                { from: 'ADM', to: 'TST' }
             ];
             this.saveCommutes();
         }
@@ -240,7 +213,7 @@ const AuraDashboard = {
         }
         AuraNav.switchTab(0);
         this.refreshAllBoards(false);
-        AuraToast.show(`📺 已將 ${MtrData.stations[staId].name}站 加入雙向電視看板`);
+        AuraToast.show(`📺 已新增 ${MtrData.stations[staId].name}站 看板`);
     },
 
     switchCardLine(idx, newLineId) {
@@ -252,21 +225,17 @@ const AuraDashboard = {
     },
 
     removeMonitor(idx) {
-        const removed = this.monitored[idx];
         this.monitored.splice(idx, 1);
         this.saveMonitored();
         this.refreshAllBoards(false);
-        if (removed && MtrData.stations[removed.staId]) {
-            AuraToast.show(`已移除 ${MtrData.stations[removed.staId].name}站 看板`);
-        }
     },
 
     addCommuteBookmark(from, to) {
         this.commutes = this.commutes.filter(c => !(c.from === from && c.to === to));
-        this.commutes.unshift({ from, to, label: '⭐ 收藏通勤' });
+        this.commutes.unshift({ from, to });
         this.saveCommutes();
         this.renderCommutes();
-        AuraToast.show(`⭐ 已收藏「${MtrData.stations[from].name} ➔ ${MtrData.stations[to].name}」至極光看板`);
+        AuraToast.show(`⭐ 已收藏「${MtrData.stations[from].name} ➔ ${MtrData.stations[to].name}」`);
     },
 
     removeCommute(idx, e) {
@@ -274,14 +243,13 @@ const AuraDashboard = {
         this.commutes.splice(idx, 1);
         this.saveCommutes();
         this.renderCommutes();
-        AuraToast.show('已移除收藏路線');
     },
 
     renderCommutes() {
         const bar = document.getElementById('commute-pills-bar');
         if (!bar) return;
         if (this.commutes.length === 0) {
-            bar.innerHTML = `<div style="font-size:0.76rem;color:var(--text-sub);">於「路線導航艙」規劃路線後可一鍵收藏至此</div>`;
+            bar.innerHTML = `<span style="font-size:0.74rem;color:var(--text-sub);">於「路線導航」可一鍵收藏常用路線</span>`;
             return;
         }
         bar.innerHTML = this.commutes.map((c, idx) => {
@@ -290,22 +258,18 @@ const AuraDashboard = {
             const fareObj = AuraCockpit.getRawFare(c.from, c.to);
             const fareStr = fareObj ? `$${Number(fareObj.oct).toFixed(1)}` : '';
             return `<div class="commute-pill" onclick="AuraCockpit.launchRoute('${c.from}','${c.to}')">
-                <div>
-                    <div style="font-size:0.61rem;color:var(--aura-cyan);font-weight:800;">${c.label || '常用路線'}</div>
-                    <div class="commute-pill-route">${fName} ➔ ${tName}</div>
-                </div>
-                <div class="commute-pill-meta">${fareStr}</div>
-                <span class="commute-del-btn" title="移除" onclick="AuraDashboard.removeCommute(${idx}, event)">✕</span>
+                <span>${fName} ➔ ${tName}</span>
+                <span style="color:#10B981;">${fareStr}</span>
+                <span style="color:var(--text-sub);font-size:0.65rem;" onclick="AuraDashboard.removeCommute(${idx}, event)">✕</span>
             </div>`;
         }).join('');
     },
 
     locateNearest() {
         const titleEl = document.getElementById('hero-nearest-sta');
-        const metaEl = document.getElementById('hero-nearest-meta');
-        if (titleEl) titleEl.innerText = '📡 正在掃描最近車站...';
+        if (titleEl) titleEl.innerText = '正在掃描...';
 
-        const applyNearest = (lat, lon, isSim) => {
+        const applyNearest = (lat, lon) => {
             let best = 'MOK', minD = 1e9;
             Object.keys(MtrData.stations).forEach(code => {
                 const s = MtrData.stations[code];
@@ -314,112 +278,87 @@ const AuraDashboard = {
             });
             const st = MtrData.stations[best];
             const distM = Math.max(45, Math.round(minD));
-            const walkMin = Math.max(1, Math.round(distM / 75));
-            const lines = getStationLines(best).map(l => l.name).join(' / ');
-            if (titleEl) titleEl.innerHTML = `${st.name} <span style="font-size:0.86rem;color:var(--text-sub);font-weight:600;">${st.en} (${best})</span>`;
-            if (metaEl) metaEl.innerHTML = `直線約 ${distM}m (步行約 ${walkMin} 分鐘) • ${lines} <span style="color:var(--aura-cyan);cursor:pointer;margin-left:6px;font-weight:800;" onclick="AuraCockpit.setExternal('${best}','origin')">[設為起點 ↗]</span> <span style="color:#34D399;cursor:pointer;margin-left:6px;font-weight:800;" onclick="AuraHub.openHologram('${best}')">[全息百科 🏢]</span>`;
-            AuraToast.show(`📡 已定位最近港鐵站：${st.name}站`);
+            if (titleEl) titleEl.innerText = `${st.name} (約 ${distM}m)`;
+            const btnO = document.getElementById('hero-btn-origin');
+            const btnH = document.getElementById('hero-btn-holo');
+            if (btnO) btnO.setAttribute('onclick', `AuraCockpit.setExternal('${best}','origin')`);
+            if (btnH) btnH.setAttribute('onclick', `AuraHub.openHologram('${best}')`);
+            AuraToast.show(`📡 最近車站：${st.name}站`);
         };
 
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
-                p => applyNearest(p.coords.latitude, p.coords.longitude, false),
+                p => applyNearest(p.coords.latitude, p.coords.longitude),
                 () => {
-                    const hubs = [[22.3198,114.1694],[22.2815,114.1580],[22.2795,114.1840],[22.3236,114.2140],[22.3820,114.1870]];
+                    const hubs = [[22.3236,114.2140],[22.3198,114.1694],[22.2815,114.1580],[22.3820,114.1870]];
                     const pick = hubs[this.simIdx++ % hubs.length];
-                    applyNearest(pick[0], pick[1], true);
+                    applyNearest(pick[0], pick[1]);
                 },
-                { timeout: 2200 }
+                { timeout: 2000 }
             );
         } else {
-            applyNearest(22.3198, 114.1694, true);
+            applyNearest(22.3236, 114.2140);
         }
     },
 
     async refreshAllBoards(showFeedback) {
-        if (showFeedback) AuraToast.show('↻ 正在同步全網月台實時數據...');
+        if (showFeedback) AuraToast.show('↻ 正在同步實時班次...');
         const container = document.getElementById('pids-board-container');
         if (!container) return;
         if (this.monitored.length === 0) {
-            container.innerHTML = `<div style="text-align:center;padding:36px 20px;background:var(--bento-bg);border-radius:24px;border:1px dashed var(--glass-border);">
-                <div style="font-size:2rem;margin-bottom:8px;">📺</div>
-                <div style="font-weight:800;">尚未新增雙向月台電視看板</div>
-                <button class="radar-btn" style="margin-top:12px;" onclick="AuraPicker.open('pin')">＋ 立即新增車站</button>
+            container.innerHTML = `<div style="text-align:center;padding:32px;background:var(--bento-bg);border-radius:20px;border:1px dashed var(--glass-border);">
+                <div style="font-weight:800;margin-bottom:10px;">尚未新增監測車站</div>
+                <button class="pids-icon-btn" style="color:var(--aura-cyan);" onclick="AuraPicker.open('pin')">＋ 新增車站</button>
             </div>`;
             return;
         }
 
         container.innerHTML = this.monitored.map((m, idx) => {
-            const sta = MtrData.stations[m.staId] || { name: m.staId, en: '' };
+            const sta = MtrData.stations[m.staId] || { name: m.staId };
             const staLines = getStationLines(m.staId);
             const curLine = MtrData.lines.find(l => l.id === m.lineId) || staLines[0] || MtrData.lines[0];
-            const dirs = MTR_DIRECTIONS[curLine.id] || { UP: '上行終點', DOWN: '下行終點' };
+            const dirs = MTR_DIRECTIONS[curLine.id] || { UP: '上行', DOWN: '下行' };
 
-            const lineSwitcher = staLines.length > 1 ? staLines.map(l =>
-                `<span onclick="AuraDashboard.switchCardLine(${idx},'${l.id}')" style="cursor:pointer;padding:3px 8px;border-radius:6px;font-size:0.68rem;font-weight:800;color:#fff;background:${l.color};opacity:${l.id===curLine.id?1:0.35};">${l.name.replace('綫','')}</span>`
-            ).join('') : `<span class="pids-sta-badge" style="background:${curLine.color};">${curLine.name}</span>`;
+            const lineSwitcher = staLines.map(l =>
+                `<span onclick="AuraDashboard.switchCardLine(${idx},'${l.id}')" style="cursor:pointer;padding:2px 8px;border-radius:6px;font-size:0.68rem;font-weight:800;color:#fff;background:${l.color};opacity:${l.id===curLine.id?1:0.32};">${l.name.replace('綫','')}</span>`
+            ).join('');
 
             return `<div class="pids-station-card">
                 <div class="pids-card-header">
                     <div class="pids-line-bar" style="background:${curLine.color};"></div>
-                    <div class="pids-sta-title">
-                        <div>
-                            <div style="display:flex;align-items:center;gap:6px;">
-                                <span class="pids-sta-name">${sta.name}</span>
-                                <span class="pids-sta-en">${sta.en}</span>
-                            </div>
-                            <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">${lineSwitcher}</div>
-                        </div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <span class="pids-sta-name">${sta.name}</span>
+                        <div style="display:flex;gap:4px;">${lineSwitcher}</div>
                     </div>
-                    <div class="pids-header-btns">
-                        <button class="pids-icon-btn" onclick="AuraHub.openHologram('${m.staId}')">🏢 全息艙</button>
+                    <div style="display:flex;gap:6px;">
+                        <button class="pids-icon-btn" onclick="AuraHub.openHologram('${m.staId}')">詳情</button>
                         <button class="pids-icon-btn" onclick="AuraDashboard.removeMonitor(${idx})">✕</button>
                     </div>
                 </div>
 
                 <div class="pids-dual-grid">
-                    <!-- UP Platform Pane -->
-                    <div class="pids-dir-pane" id="pids-up-${idx}">
-                        <div class="pids-dir-top">
-                            <div>
-                                <div class="pids-dir-tag">▲ 上行月台 UP</div>
-                                <div class="pids-dest-main" id="dest-up-${idx}">往 ${dirs.UP}</div>
-                            </div>
-                            <div class="pids-plat-circle" id="plat-up-${idx}">1</div>
+                    <div class="pids-dir-pane" onclick="AuraHub.openHologram('${m.staId}')">
+                        <div class="pids-dest-row">
+                            <span class="pids-dest-main" id="dest-up-${idx}">往 ${dirs.UP}</span>
+                            <span class="pids-plat-badge" id="plat-up-${idx}">1號月台</span>
                         </div>
                         <div class="pids-eta-hero">
-                            <div><span class="pids-eta-num" id="eta-up-${idx}">--</span><span class="pids-eta-unit" id="unit-up-${idx}">min</span></div>
+                            <span class="pids-eta-num" id="eta-up-${idx}">--</span>
+                            <span class="pids-eta-unit" id="unit-up-${idx}">min</span>
                         </div>
-                        <div class="pids-prog-track"><div class="pids-prog-fill" id="prog-up-${idx}" style="width:20%;"></div></div>
-                        <div class="pids-next-list" id="next-up-${idx}">
-                            <div class="pids-next-row"><span>同步訊號中...</span></div>
-                        </div>
+                        <div class="pids-sub-eta" id="next-up-${idx}">同步中...</div>
                     </div>
 
-                    <!-- DOWN Platform Pane -->
-                    <div class="pids-dir-pane" id="pids-down-${idx}">
-                        <div class="pids-dir-top">
-                            <div>
-                                <div class="pids-dir-tag" style="color:#F472B6;">▼ 下行月台 DOWN</div>
-                                <div class="pids-dest-main" id="dest-down-${idx}">往 ${dirs.DOWN}</div>
-                            </div>
-                            <div class="pids-plat-circle" style="border-color:#F472B6;color:#F472B6;" id="plat-down-${idx}">2</div>
+                    <div class="pids-dir-pane" onclick="AuraHub.openHologram('${m.staId}')">
+                        <div class="pids-dest-row">
+                            <span class="pids-dest-main" id="dest-down-${idx}">往 ${dirs.DOWN}</span>
+                            <span class="pids-plat-badge" style="color:#F472B6;border-color:rgba(244,114,182,0.4);background:rgba(244,114,182,0.14);" id="plat-down-${idx}">2號月台</span>
                         </div>
                         <div class="pids-eta-hero">
-                            <div><span class="pids-eta-num" id="eta-down-${idx}">--</span><span class="pids-eta-unit" id="unit-down-${idx}">min</span></div>
+                            <span class="pids-eta-num" id="eta-down-${idx}">--</span>
+                            <span class="pids-eta-unit" id="unit-down-${idx}">min</span>
                         </div>
-                        <div class="pids-prog-track"><div class="pids-prog-fill" id="prog-down-${idx}" style="width:20%;background:linear-gradient(90deg,#F472B6,#A855F7);"></div></div>
-                        <div class="pids-next-list" id="next-down-${idx}">
-                            <div class="pids-next-row"><span>同步訊號中...</span></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="pids-card-footer">
-                    <span style="color:var(--text-sub);">🕐 首末車：${sta.first || '06:00'} - ${sta.last || '00:50'}</span>
-                    <div style="display:flex;gap:12px;">
-                        <span style="color:var(--aura-cyan);font-weight:800;cursor:pointer;" onclick="AuraCockpit.setExternal('${m.staId}','origin')">↗ 設為起點</span>
-                        <span style="color:#34D399;font-weight:800;cursor:pointer;" onclick="AuraCockpit.setExternal('${m.staId}','dest')">↘ 設為終點</span>
+                        <div class="pids-sub-eta" id="next-down-${idx}">同步中...</div>
                     </div>
                 </div>
             </div>`;
@@ -436,16 +375,14 @@ const AuraDashboard = {
                 const unitEl = document.getElementById(`unit-${suffix}-${idx}`);
                 const platEl = document.getElementById(`plat-${suffix}-${idx}`);
                 const destEl = document.getElementById(`dest-${suffix}-${idx}`);
-                const progEl = document.getElementById(`prog-${suffix}-${idx}`);
                 const nextEl = document.getElementById(`next-${suffix}-${idx}`);
                 if (!etaEl) return;
 
                 if (isTerminusForDir(m.lineId, m.staId, dirKey)) {
-                    etaEl.innerText = '🏁 落客終點';
+                    etaEl.innerText = '落客終點';
                     etaEl.className = 'pids-eta-num terminus';
                     if (unitEl) unitEl.innerText = '';
-                    if (progEl) progEl.style.width = '100%';
-                    if (nextEl) nextEl.innerHTML = '<div class="pids-next-row"><span>此月台為終點落客專用</span></div>';
+                    if (nextEl) nextEl.innerText = '此方向為終點站';
                     return;
                 }
 
@@ -456,34 +393,32 @@ const AuraDashboard = {
                     etaEl.innerText = '暫無班次';
                     etaEl.className = 'pids-eta-num terminus';
                     if (unitEl) unitEl.innerText = '';
-                    if (nextEl) nextEl.innerHTML = '<div class="pids-next-row"><span>非行車時段或調整中</span></div>';
+                    if (nextEl) nextEl.innerText = '非行車時段';
                     return;
                 }
 
                 const m0 = calcEtaMin(trains[0], now);
                 const d0Name = MtrData.stations[trains[0].dest] ? MtrData.stations[trains[0].dest].name : trains[0].dest;
-                if (destEl) destEl.innerText = `往 ${d0Name}${trains[0].route === 'RAC' ? '(經馬場)' : ''}`;
-                if (platEl) platEl.innerText = trains[0].plat || (dirKey === 'UP' ? '1' : '2');
+                if (destEl) destEl.innerText = `往 ${d0Name}`;
+                if (platEl) platEl.innerText = `${trains[0].plat || (dirKey === 'UP' ? '1' : '2')}號月台`;
 
                 if (m0 === 0) {
                     etaEl.innerText = '即將到站';
                     etaEl.className = 'pids-eta-num arriving';
                     if (unitEl) unitEl.innerText = '';
-                    if (progEl) progEl.style.width = '100%';
                 } else {
                     etaEl.innerText = m0;
                     etaEl.className = 'pids-eta-num';
                     if (unitEl) unitEl.innerText = 'min';
-                    if (progEl) progEl.style.width = `${Math.max(15, Math.min(95, Math.round((1 - Math.min(m0, 10) / 10) * 100)))}%`;
                 }
 
-                let nextHtml = '';
-                for (let i = 1; i < Math.min(3, trains.length); i++) {
-                    const mi = calcEtaMin(trains[i], now);
-                    const dName = MtrData.stations[trains[i].dest] ? MtrData.stations[trains[i].dest].name : trains[i].dest;
-                    nextHtml += `<div class="pids-next-row"><span>往 ${dName} (${formatHHMM(trains[i].dateObj)})</span><b>${mi === 0 ? '即將到站' : mi + ' min'}</b></div>`;
+                const subMins = trains.slice(1, 3).map(t => {
+                    const mi = calcEtaMin(t, now);
+                    return mi === 0 ? '即將' : `${mi} min`;
+                });
+                if (nextEl) {
+                    nextEl.innerHTML = subMins.length > 0 ? `下班：<b>${subMins.join(' / ')}</b>` : '尾班車已開出';
                 }
-                if (nextEl) nextEl.innerHTML = nextHtml || '<div class="pids-next-row"><span>暫無後續班次</span></div>';
             };
 
             fillPane('UP', 'up');
@@ -492,24 +427,37 @@ const AuraDashboard = {
     }
 };
 
-// 4. Tab 1: Spatial Route Cockpit
+// 4. Tab 1: Spatial Route Cockpit (State-Graph Multi-Route Engine)
 const AuraCockpit = (function() {
     let map = null, tileLayer = null, linesLayer = null, highlightLayer = null, stationsLayer = null;
-    let activeSlot = 'origin', originSta = 'KOB', destSta = 'CEN';
-    let currentStrategy = 'fastest';
-    let sheetSnap = 'normal'; // 'mini' | 'normal' | 'tall'
+    let activeSlot = 'origin', originSta = 'KOB', destSta = 'FAN';
+    let currentStrategy = 'fewest';
+    let sheetSnap = 'normal';
     let cachedRoutes = {};
     let faresDB = null;
-    let timesDB = null;
     let showAllLabels = false;
     const graph = {};
 
-    const HEADWAYS = { 'ISL':3,'TWL':3,'KTL':3,'TKO':4,'EAL':4,'TML':4,'TCL':5,'AEL':10,'DRL':10,'SIL':4,'DEFAULT':4 };
+    const HEADWAYS = { 'ISL':2.5,'TWL':2.5,'KTL':2.5,'TKO':3.5,'EAL':3.5,'TML':3.5,'TCL':4.5,'AEL':10,'DRL':8,'SIL':3.5,'DEFAULT':3.5 };
+
+    // Realistic MTR segment travel times (minutes)
+    const REAL_SEG_MINS = {
+        'KOT-TAW': 3.8, 'TAW-SHT': 2.2, 'SHT-FOT': 2.2, 'FOT-UNI': 2.8, 'UNI-TAP': 5.2, 'TAP-TWO': 2.2, 'TWO-FAN': 4.8, 'FAN-SHS': 2.5, 'SHS-LOW': 3.8, 'SHS-LMC': 4.5,
+        'ADM-EXC': 2.2, 'EXC-HUH': 3.8, 'HUH-MKK': 2.5, 'MKK-KOT': 2.5,
+        'DIH-HIK': 2.8, 'HIK-TAW': 2.2,
+        'TWW-KSR': 6.5, 'KSR-YUL': 3.5, 'TIS-SIH': 3.8,
+        'LAK-TSY': 3.2, 'TSY-SUN': 5.2, 'SUN-TUC': 6.8,
+        'YAT-QUO': 4.2, 'NOP-QUO': 1.8, 'ADM-TST': 3.2, 'ADM-OCP': 4.2
+    };
+
+    function getSegWeight(u, v) {
+        return REAL_SEG_MINS[`${u}-${v}`] || REAL_SEG_MINS[`${v}-${u}`] || 2.1;
+    }
 
     function getTransferInfo(staId, fromL, toL) {
         const bf = fromL.split('_')[0], bt = toL.split('_')[0];
         const g = TRANSFER_GUIDE[staId];
-        let walk = 2.5, cross = false, tip = '經車站大堂扶手電梯轉乘（建議車廂：第 4-6 卡）', cars = [4, 5, 6];
+        let walk = 2.5, cross = false, tip = '經大堂扶手電梯轉乘', cars = [4, 5, 6];
         if (g) {
             const spec = g[`${bf}-${bt}`] || g.default;
             if (spec) {
@@ -522,7 +470,7 @@ const AuraCockpit = (function() {
                 else if (tip.includes('4-5')) cars = [4, 5];
             }
         }
-        const waitMax = HEADWAYS[toL] || 4;
+        const waitMax = HEADWAYS[bt] || 3.5;
         return { walk, waitMax, avg: walk + waitMax / 2, cross, tip, cars };
     }
 
@@ -532,10 +480,7 @@ const AuraCockpit = (function() {
             for (let i = 0; i < line.path.length - 1; i++) {
                 const u = line.path[i], v = line.path[i + 1];
                 if (MtrData.stations[u] && MtrData.stations[v]) {
-                    let wt = 2.1;
-                    const au = getApiId(u), av = getApiId(v);
-                    if (timesDB && timesDB[au] && timesDB[au][av]) wt = timesDB[au][av] / 60;
-                    else if (timesDB && timesDB[av] && timesDB[av][au]) wt = timesDB[av][au] / 60;
+                    const wt = getSegWeight(u, v);
                     graph[u].push({ node: v, lineId: line.id, lineColor: line.color, lineName: line.name, weight: wt });
                     graph[v].push({ node: u, lineId: line.id, lineColor: line.color, lineName: line.name, weight: wt });
                 }
@@ -554,21 +499,11 @@ const AuraCockpit = (function() {
     async function init() {
         if (window.INLINE_FARES_DATA) {
             faresDB = window.INLINE_FARES_DATA;
-        } else {
-            try {
-                const r = await fetch('./mtr_fares.json');
-                if (r.ok) faresDB = await r.json();
-            } catch (e) {}
         }
-        try {
-            const tr = await fetchWithTimeout('https://timeinterval.hkbuseta.com/times/all.json', { timeout: 3000 });
-            if (tr.ok) timesDB = await tr.json();
-        } catch (e) {}
-
         buildNetworkGraph();
 
         if (typeof L !== 'undefined') {
-            map = L.map('aura-map-canvas', { zoomControl: false, minZoom: 11, maxZoom: 17.5, zoomSnap: 0 }).setView([22.32, 114.17], 12);
+            map = L.map('aura-map-canvas', { zoomControl: false, minZoom: 11, maxZoom: 17.5, zoomSnap: 0 }).setView([22.34, 114.17], 12);
             syncMapTiles(AuraTheme.isLight);
             linesLayer = L.layerGroup().addTo(map);
             highlightLayer = L.layerGroup().addTo(map);
@@ -577,7 +512,7 @@ const AuraCockpit = (function() {
 
             map.on('zoom', () => {
                 const z = map.getZoom();
-                const sc = Math.max(0.8, Math.min(2.3, 1 + (z - 12) * 0.15));
+                const sc = Math.max(0.8, Math.min(2.2, 1 + (z - 12) * 0.15));
                 const mc = document.getElementById('aura-map-canvas');
                 if (mc) {
                     mc.style.setProperty('--label-scale', sc);
@@ -623,7 +558,7 @@ const AuraCockpit = (function() {
     }
 
     function onStationPicked(staId) {
-        if (navigator.vibrate) navigator.vibrate(30);
+        if (navigator.vibrate) navigator.vibrate(25);
         if (activeSlot === 'origin') {
             if (staId === destSta) { swapStations(); return; }
             originSta = staId;
@@ -639,8 +574,8 @@ const AuraCockpit = (function() {
     function updateCapsuleUI() {
         const oEl = document.getElementById('slot-origin-val');
         const dEl = document.getElementById('slot-dest-val');
-        if (oEl) oEl.innerText = originSta ? `${MtrData.stations[originSta].name} (${originSta})` : '選擇起點';
-        if (dEl) dEl.innerText = destSta ? `${MtrData.stations[destSta].name} (${destSta})` : '選擇終點';
+        if (oEl) oEl.innerText = originSta ? MtrData.stations[originSta].name : '選擇起點';
+        if (dEl) dEl.innerText = destSta ? MtrData.stations[destSta].name : '選擇終點';
     }
 
     function swapStations() {
@@ -676,49 +611,59 @@ const AuraCockpit = (function() {
             if (m) m.className = `mtr-station-marker ${maj?'interchange-node':''}`;
             if (l) l.className = `station-label ${maj?'major-station-label':'minor-station-label'}`;
         });
-        if (map) map.flyTo([22.32, 114.17], 12, { duration: 0.6 });
+        if (map) map.flyTo([22.34, 114.17], 12, { duration: 0.5 });
     }
 
-    function runDijkstra(start, end, mode) {
-        const dist = {}, prev = {}, prevEdge = {}, pq = [];
-        Object.keys(MtrData.stations).forEach(s => { dist[s] = 1e9; prev[s] = null; });
-        dist[start] = 0;
-        pq.push({ node: start, d: 0, lineId: null });
+    // State-Space Dijkstra: keys by `${station}|${baseLine}` so interchange hubs never overwrite each other!
+    function runStateDijkstra(start, end, mode, bannedHubs = new Set()) {
+        const dist = {}, prevState = {}, prevEdge = {}, pq = [];
+        const startKey = `${start}|START`;
+        dist[startKey] = 0;
+        pq.push({ key: startKey, node: start, lineId: null, d: 0 });
+
+        let bestEndKey = null;
 
         while (pq.length > 0) {
             pq.sort((a, b) => a.d - b.d);
-            const { node, d, lineId: curL } = pq.shift();
-            if (node === end) break;
-            if (d > dist[node]) continue;
+            const { key, node, lineId: curL, d } = pq.shift();
+            if (node === end) {
+                bestEndKey = key;
+                break;
+            }
+            if (d > (dist[key] ?? 1e9)) continue;
 
             (graph[node] || []).forEach(nb => {
+                if (nb.node === 'RAC' && start !== 'RAC' && end !== 'RAC') return;
                 let c = nb.weight;
                 const bCur = curL ? curL.split('_')[0] : null;
                 const bNext = nb.lineId.split('_')[0];
                 if (bCur !== null && bCur !== bNext && nb.lineId !== 'WALK') {
                     const ti = getTransferInfo(node, curL, nb.lineId);
-                    if (mode === 'fewest') c += ti.avg + 15;
-                    else if (mode === 'comfort') c += ti.cross ? (ti.avg * 0.35) : (ti.avg + 7);
+                    if (mode === 'fewest') c += ti.avg + 55;
+                    else if (mode === 'comfort') c += ti.cross ? (ti.avg * 0.25) : (ti.avg + 9);
                     else c += ti.avg;
+                    if (bannedHubs.has(node)) c += 45;
                 }
-                if (d + c < dist[nb.node]) {
-                    dist[nb.node] = d + c;
-                    prev[nb.node] = node;
-                    prevEdge[nb.node] = nb;
-                    pq.push({ node: nb.node, d: dist[nb.node], lineId: nb.lineId });
+                const nextKey = `${nb.node}|${bNext}`;
+                if (d + c < (dist[nextKey] ?? 1e9)) {
+                    dist[nextKey] = d + c;
+                    prevState[nextKey] = key;
+                    prevEdge[nextKey] = nb;
+                    pq.push({ key: nextKey, node: nb.node, lineId: nb.lineId, d: dist[nextKey] });
                 }
             });
         }
 
         const path = [], edges = [];
-        let curr = end;
-        while (curr) {
-            path.unshift(curr);
-            if (prev[curr]) edges.unshift(prevEdge[curr]);
-            curr = prev[curr];
+        let currKey = bestEndKey;
+        while (currKey) {
+            const node = currKey.split('|')[0];
+            path.unshift(node);
+            if (prevState[currKey]) edges.unshift(prevEdge[currKey]);
+            currKey = prevState[currKey];
         }
 
-        let realMin = 2, transfers = 0, firstTransferInfo = null;
+        let realMin = 1, transfers = 0, transferStations = [], firstTransferInfo = null;
         for (let i = 0; i < edges.length; i++) {
             realMin += edges[i].weight;
             if (i < edges.length - 1) {
@@ -726,13 +671,17 @@ const AuraCockpit = (function() {
                 const l2 = edges[i + 1].lineId.split('_')[0];
                 if (l1 !== l2 && l2 !== 'WALK') {
                     transfers++;
+                    transferStations.push(path[i + 1]);
                     const ti = getTransferInfo(path[i + 1], edges[i].lineId, edges[i + 1].lineId);
                     realMin += (l1 === 'WALK' ? 2 : ti.avg);
                     if (!firstTransferInfo) firstTransferInfo = { staId: path[i + 1], ...ti };
                 }
             }
         }
-        return { path, edges, totalMin: Math.round(realMin), transfers, firstTransferInfo };
+        const viaLabel = transferStations.length === 0
+            ? '直達免轉乘'
+            : '經' + transferStations.map(s => MtrData.stations[s].name).join('・');
+        return { path, edges, totalMin: Math.round(realMin), transfers, transferStations, viaLabel, firstTransferInfo };
     }
 
     function getRawFare(fromSta, toSta) {
@@ -743,19 +692,56 @@ const AuraCockpit = (function() {
 
     function computeAllStrategies() {
         if (!originSta || !destSta || originSta === destSta) return;
+        const rFastest = runStateDijkstra(originSta, destSta, 'fastest');
+        const rFewest = runStateDijkstra(originSta, destSta, 'fewest');
+        let rComfort = runStateDijkstra(originSta, destSta, 'comfort');
+
+        const sig = r => r.path.join('-');
+        // Ensure the 3 tabs offer distinct transfer hubs whenever possible!
+        if (sig(rFastest) === sig(rFewest) && rFastest.transferStations.length > 0) {
+            const altFast = runStateDijkstra(originSta, destSta, 'fastest', new Set(rFewest.transferStations));
+            if (altFast.path.length > 1 && altFast.totalMin <= rFewest.totalMin + 12) {
+                cachedRoutes['fewest'] = rFewest;
+                cachedRoutes['fastest'] = altFast;
+            } else {
+                cachedRoutes['fastest'] = rFastest;
+                cachedRoutes['fewest'] = rFewest;
+            }
+        } else {
+            cachedRoutes['fastest'] = rFastest;
+            cachedRoutes['fewest'] = rFewest;
+        }
+
+        const usedHubs = new Set([
+            ...(cachedRoutes['fastest'].transferStations || []),
+            ...(cachedRoutes['fewest'].transferStations || [])
+        ]);
+        if (sig(rComfort) === sig(cachedRoutes['fastest']) || sig(rComfort) === sig(cachedRoutes['fewest'])) {
+            if (usedHubs.size > 0) {
+                const alt3 = runStateDijkstra(originSta, destSta, 'fastest', usedHubs);
+                if (alt3.path.length > 1 && alt3.totalMin <= cachedRoutes['fastest'].totalMin + 16) {
+                    rComfort = alt3;
+                }
+            }
+        }
+        cachedRoutes['comfort'] = rComfort;
+
+        const icons = { fastest: '⚡', fewest: '🔄', comfort: '🛋️' };
         ['fastest', 'fewest', 'comfort'].forEach(mode => {
-            const res = runDijkstra(originSta, destSta, mode);
-            cachedRoutes[mode] = res;
-            const subEl = document.getElementById(`strat-sub-${mode}`);
-            if (subEl) subEl.innerText = `${res.totalMin} 分 • ${res.transfers} 轉乘`;
+            const r = cachedRoutes[mode];
+            const tEl = document.getElementById(`strat-title-${mode}`);
+            const sEl = document.getElementById(`strat-sub-${mode}`);
+            if (tEl) tEl.innerText = `${icons[mode]} ${r.viaLabel}`;
+            if (sEl) sEl.innerText = `${r.totalMin}分 • ${r.transfers}轉乘`;
         });
+
         selectStrategy(currentStrategy);
     }
 
     function selectStrategy(mode) {
         currentStrategy = mode;
         document.querySelectorAll('.strategy-card').forEach(c => c.classList.toggle('active', c.dataset.mode === mode));
-        const res = cachedRoutes[mode] || runDijkstra(originSta, destSta, mode);
+        const res = cachedRoutes[mode] || runStateDijkstra(originSta, destSta, mode);
         renderRouteOnMapAndSheet(res);
     }
 
@@ -764,11 +750,16 @@ const AuraCockpit = (function() {
         if (el) el.classList.toggle('hidden');
     }
 
+    function toggleExtraDrawer() {
+        const el = document.getElementById('extra-fare-consist-box');
+        if (el) el.classList.toggle('hidden');
+    }
+
     async function renderRouteOnMapAndSheet(res) {
         if (!res || res.path.length <= 1) return;
 
         // 1. Highlight on Map
-        if (linesLayer) linesLayer.getLayers().forEach(l => l.setStyle({ opacity: 0.14 }));
+        if (linesLayer) linesLayer.getLayers().forEach(l => l.setStyle({ opacity: 0.15 }));
         Object.keys(MtrData.stations).forEach(id => {
             const m = document.getElementById(`marker-${id}`);
             const l = document.getElementById(`label-${id}`);
@@ -783,8 +774,8 @@ const AuraCockpit = (function() {
             highlightLayer.clearLayers();
             let curL = null, coords = [];
             const drawGlow = (pts, col) => {
-                L.polyline(pts, { color: col, weight: 11, opacity: 0.32, lineJoin: 'round' }).addTo(highlightLayer);
-                L.polyline(pts, { color: col, weight: 5.5, opacity: 1, lineJoin: 'round' }).addTo(highlightLayer);
+                L.polyline(pts, { color: col, weight: 10, opacity: 0.3, lineJoin: 'round' }).addTo(highlightLayer);
+                L.polyline(pts, { color: col, weight: 5, opacity: 1, lineJoin: 'round' }).addTo(highlightLayer);
                 L.polyline(pts, { color: '#fff', weight: 2, opacity: 0.85, lineJoin: 'round', className: 'route-flow-dash' }).addTo(highlightLayer);
             };
             res.edges.forEach((e, i) => {
@@ -799,15 +790,15 @@ const AuraCockpit = (function() {
 
             if (map) {
                 map.flyToBounds(res.path.map(id => [MtrData.stations[id].lat, MtrData.stations[id].lon]), {
-                    paddingTopLeft: [20, 150],
-                    paddingBottomRight: [20, window.innerHeight * 0.48],
-                    maxZoom: 15,
-                    duration: 0.7
+                    paddingTopLeft: [24, 135],
+                    paddingBottomRight: [24, window.innerHeight * 0.44],
+                    maxZoom: 14.5,
+                    duration: 0.6
                 });
             }
         }
 
-        // 2. Populate Header & 4-Ticket Fare Matrix
+        // 2. First-Glance 3-Metric Hero Strip
         const rawF = getRawFare(originSta, destSta);
         const oct = Number(rawF.oct);
         const sng = Number(rawF.sng || oct);
@@ -816,26 +807,25 @@ const AuraCockpit = (function() {
         const joy = isBound ? con : Math.min(oct, 2.0);
         const arrClock = formatHHMM(new Date(Date.now() + res.totalMin * 60000));
 
-        document.getElementById('cockpit-sheet-header').innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-                <div>
-                    <div style="font-size:1.38rem;font-weight:900;">全程約 ${res.totalMin} 分鐘 <span style="font-size:0.78rem;color:var(--aura-cyan);font-weight:800;">• 預計 ${arrClock} 抵達</span></div>
-                    <div style="font-size:0.74rem;color:var(--text-sub);margin-top:2px;" id="cockpit-live-origin-eta">
-                        途經 ${res.path.length - 1} 站 • 轉乘 ${res.transfers} 次 • 正在同步首班車倒數...
-                    </div>
-                </div>
-                <button class="pids-icon-btn" style="color:var(--aura-cyan);border-color:var(--aura-cyan);" onclick="AuraDashboard.addCommuteBookmark('${originSta}','${destSta}')">⭐ 收藏</button>
+        const bmBtn = document.getElementById('btn-bookmark-route');
+        if (bmBtn) bmBtn.setAttribute('onclick', `AuraDashboard.addCommuteBookmark('${originSta}','${destSta}')`);
+
+        document.getElementById('cockpit-hero-metrics').innerHTML = `
+            <div class="metric-box">
+                <div class="metric-label">⏱️ 預計車程 (${arrClock} 到)</div>
+                <div class="metric-val">${res.totalMin} 分鐘 <span style="font-size:0.72rem;color:var(--aura-cyan);">${res.transfers}轉乘</span></div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-label">💳 成人八達通</div>
+                <div class="metric-val" style="color:#10B981;">$${oct.toFixed(1)}</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-label">🟢 起點下班車</div>
+                <div class="metric-val" id="cockpit-live-origin-eta" style="color:#34D399;">同步中</div>
             </div>
         `;
 
-        document.getElementById('cockpit-fare-grid').innerHTML = `
-            <div class="fare-cell highlight"><div class="fare-cell-label">成人八達通</div><div class="fare-cell-val">$${oct.toFixed(1)}</div></div>
-            <div class="fare-cell"><div class="fare-cell-label">單程車票</div><div class="fare-cell-val">$${sng.toFixed(1)}</div></div>
-            <div class="fare-cell"><div class="fare-cell-label">小童 / 學生</div><div class="fare-cell-val">$${con.toFixed(1)}</div></div>
-            <div class="fare-cell"><div class="fare-cell-label">樂悠咭 $2</div><div class="fare-cell-val">$${joy.toFixed(1)}</div></div>
-        `;
-
-        // 3. Dynamic Car Consist Visualizer (3 / 4 / 8 / 9 Cars)
+        // 3. Collapsible Extra Drawer (Other Fares + Recommended Train Car)
         const firstRailEdge = res.edges.find(e => e.lineId !== 'WALK') || res.edges[0];
         const firstLineBase = firstRailEdge.lineId.split('_')[0];
         const totalCars = firstLineBase === 'EAL' ? 9 : (firstLineBase === 'SIL' ? 3 : (firstLineBase === 'DRL' ? 4 : 8));
@@ -843,25 +833,23 @@ const AuraCockpit = (function() {
         bestCars = bestCars.filter(c => c <= totalCars);
         if (bestCars.length === 0) bestCars = [Math.ceil(totalCars / 2)];
 
-        const targetStaName = res.firstTransferInfo ? MtrData.stations[res.firstTransferInfo.staId].name : MtrData.stations[destSta].name;
-        const carNums = Array.from({ length: totalCars }, (_, i) => i + 1);
-        const carsHtml = carNums.map(c => {
+        const carsHtml = Array.from({ length: totalCars }, (_, i) => i + 1).map(c => {
             const isBest = bestCars.includes(c);
-            const isFirstClass = (firstLineBase === 'EAL' && c === 4);
-            return `<div class="train-car-unit ${isBest?'best-car':''}">${isBest?'★':''}${c}卡${isFirstClass?'(頭等)':''}</div>`;
+            return `<div style="flex:1;height:22px;border-radius:5px;background:${isBest?'#10B981':'var(--chip-inactive-bg)'};color:${isBest?'#fff':'var(--text-sub)'};font-size:0.65rem;font-weight:800;display:flex;align-items:center;justify-content:center;">${isBest?'★':''}${c}卡</div>`;
         }).join('');
 
-        document.getElementById('cockpit-consist-container').innerHTML = `
-            <div class="train-consist-box">
-                <div class="train-consist-title">
-                    <span>🚆 ${firstRailEdge.lineName} (${totalCars}卡編組) • 對準 ${targetStaName}站 轉乘梯/出口</span>
-                    <span style="color:#34D399;">推薦第 ${bestCars.join(', ')} 卡</span>
-                </div>
-                <div class="train-cars-row">${carsHtml}</div>
+        document.getElementById('cockpit-extra-drawer').innerHTML = `
+            <div onclick="AuraCockpit.toggleExtraDrawer()" style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;margin-top:6px;background:var(--chip-inactive-bg);border-radius:10px;font-size:0.74rem;font-weight:800;color:var(--text-sub);cursor:pointer;">
+                <span>🚆 建議登車：第 <b style="color:#34D399;">${bestCars.join(', ')}</b> 卡 • 單程 $${sng.toFixed(1)} / 小童 $${con.toFixed(1)} / 樂悠 $${joy.toFixed(1)}</span>
+                <span style="color:var(--aura-cyan);">車廂圖 ▾</span>
+            </div>
+            <div id="extra-fare-consist-box" class="hidden" style="margin-top:6px;padding:8px 10px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:12px;">
+                <div style="font-size:0.68rem;color:var(--aura-cyan);font-weight:800;margin-bottom:5px;">${firstRailEdge.lineName} (${totalCars}卡列車) • ★綠卡對準轉乘扶手梯</div>
+                <div style="display:flex;gap:4px;">${carsHtml}</div>
             </div>
         `;
 
-        // 4. Segment Timeline with Expandable Intermediate Stops
+        // 4. Clean Step-by-Step Timeline
         const segs = [];
         let cl = res.edges[0].lineId, cc = res.edges[0].lineColor, cn = res.edges[0].lineName, stas = [res.path[0]];
         res.edges.forEach((e, i) => {
@@ -881,44 +869,37 @@ const AuraCockpit = (function() {
             if (idx > 0 && seg.lineId !== 'WALK') {
                 const prevL = segs[idx - 1].lineId === 'WALK' && idx >= 2 ? segs[idx - 2].lineId : segs[idx - 1].lineId;
                 const ti = getTransferInfo(s0, prevL, seg.lineId);
-                tlHtml += `<div style="margin:6px 0 8px 14px;padding:8px 12px;border-radius:12px;background:rgba(14,165,233,0.12);border-left:3px solid var(--aura-cyan);font-size:0.75rem;">
-                    <b>🔄 於 ${MtrData.stations[s0].name} 轉乘 ${seg.name}</b> (${ti.cross?'⚡ 同層對面月台直達':'步程約 '+ti.walk+' 分鐘'})<br>
-                    <span style="color:var(--text-sub);">${ti.tip}</span>
+                tlHtml += `<div style="margin:6px 0 8px 14px;padding:7px 11px;border-radius:10px;background:rgba(56,189,248,0.10);border-left:3px solid var(--aura-cyan);font-size:0.76rem;display:flex;justify-content:space-between;align-items:center;">
+                    <span><b>🔄 於 ${MtrData.stations[s0].name} 轉乘 ${seg.name}</b></span>
+                    <span style="color:var(--aura-cyan);font-weight:800;">${ti.cross?'⚡ 對面月台':'步程約 '+ti.walk+' 分'}</span>
                 </div>`;
             }
             const expandBtn = midStas.length > 0
-                ? `<span style="color:var(--aura-cyan);cursor:pointer;margin-left:8px;font-weight:700;" onclick="AuraCockpit.toggleSegStations(${idx})">▼ 展開途經 ${midStas.length} 站</span>`
-                : '';
+                ? `<span style="color:var(--aura-cyan);cursor:pointer;margin-left:8px;font-weight:800;" onclick="AuraCockpit.toggleSegStations(${idx})">途經 ${midStas.length} 站 ▾</span>`
+                : `<span style="color:var(--text-sub);margin-left:8px;">直達下站</span>`;
             const midListHtml = midStas.length > 0
-                ? `<div id="seg-stops-${idx}" class="hidden" style="margin-top:6px;padding:6px 10px;background:var(--chip-inactive-bg);border-radius:10px;font-size:0.74rem;color:var(--text-sub);display:flex;flex-wrap:wrap;gap:6px;">
+                ? `<div id="seg-stops-${idx}" class="hidden" style="margin-top:5px;padding:6px 10px;background:var(--chip-inactive-bg);border-radius:8px;font-size:0.74rem;color:var(--text-sub);display:flex;flex-wrap:wrap;gap:6px;">
                     ${midStas.map(id => `<span>• ${MtrData.stations[id].name}</span>`).join('')}
                    </div>`
                 : '';
 
-            tlHtml += `<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:8px;">
-                <div style="width:6px;min-height:46px;border-radius:3px;background:${seg.color};margin-top:4px;"></div>
+            tlHtml += `<div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;">
+                <div style="width:5px;height:36px;border-radius:3px;background:${seg.color};flex-shrink:0;"></div>
                 <div style="flex:1;">
-                    <div style="font-weight:900;font-size:0.96rem;">${MtrData.stations[s0].name} ➔ ${MtrData.stations[sEnd].name}</div>
-                    <div style="font-size:0.75rem;color:var(--text-sub);margin-top:2px;">
-                        <span style="background:${seg.color};color:#fff;padding:1px 6px;border-radius:5px;font-weight:800;">${seg.name}</span> • 共 ${seg.stas.length - 1} 站 ${expandBtn}
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-weight:900;font-size:0.96rem;">${MtrData.stations[s0].name} ➔ ${MtrData.stations[sEnd].name}</span>
+                        <span style="font-size:0.73rem;"><span style="background:${seg.color};color:#fff;padding:2px 6px;border-radius:5px;font-weight:800;">${seg.name}</span>${expandBtn}</span>
                     </div>
                     ${midListHtml}
                 </div>
             </div>`;
         });
 
-        const destEx = (MtrData.stations[destSta].exits || [])[0] || '';
-        if (destEx) {
-            tlHtml += `<div style="margin-top:8px;padding:8px 12px;border-radius:12px;background:rgba(16,185,129,0.12);font-size:0.76rem;color:#34D399;font-weight:700;">
-                🏁 抵達 ${MtrData.stations[destSta].name} • 焦點出口：${destEx}
-            </div>`;
-        }
-
         document.getElementById('cockpit-timeline-list').innerHTML = tlHtml;
         setSheetSnap('normal');
         document.getElementById('cockpit-route-sheet').classList.add('open');
 
-        // 5. Fetch live origin train countdown
+        // 5. Live Origin Countdown
         if (firstRailEdge && firstRailEdge.lineId !== 'WALK') {
             const etaRes = await fetchLiveMtrEta(firstRailEdge.lineId, originSta);
             const sched = etaRes ? etaRes.schedule : null;
@@ -929,7 +910,7 @@ const AuraCockpit = (function() {
             const liveSub = document.getElementById('cockpit-live-origin-eta');
             if (liveSub && allT.length > 0) {
                 const waitM = calcEtaMin(allT[0], now);
-                liveSub.innerHTML = `途經 ${res.path.length - 1} 站 • 轉乘 ${res.transfers} 次 • <span style="color:#34D399;font-weight:800;">🟢 起點下一班車：${waitM === 0 ? '即將到站' : waitM + ' 分鐘後'} (月台 ${allT[0].plat || '1'})</span>`;
+                liveSub.innerHTML = waitM === 0 ? '即將到站' : `${waitM} min`;
             }
         }
     }
@@ -941,7 +922,7 @@ const AuraCockpit = (function() {
             else destSta = staId;
             updateCapsuleUI();
             computeAllStrategies();
-        }, 160);
+        }, 140);
     }
 
     function launchRoute(from, to) {
@@ -950,32 +931,32 @@ const AuraCockpit = (function() {
         setTimeout(() => {
             updateCapsuleUI();
             computeAllStrategies();
-        }, 160);
+        }, 140);
     }
 
     return {
         init, syncMapTiles, invalidateMap: () => map && map.invalidateSize(),
         zoomIn: () => map && map.zoomIn(0.8), zoomOut: () => map && map.zoomOut(0.8),
-        resetMap: () => map && map.flyTo([22.32, 114.17], 12, { duration: 0.6 }),
+        resetMap: () => map && map.flyTo([22.34, 114.17], 12, { duration: 0.5 }),
         toggleLabels: () => {
             showAllLabels = !showAllLabels;
             const mc = document.getElementById('aura-map-canvas');
             if (mc) mc.classList.toggle('hide-minor-labels', !showAllLabels);
-            AuraToast.show(showAllLabels ? '🏷️ 已顯示全網所有車站名稱' : '🏷️ 已切換為智能縮放站名');
+            AuraToast.show(showAllLabels ? '🏷️ 已顯示全部站名' : '🏷️ 已切換為重點站名');
         },
         focusSlot, swapStations, selectStrategy, onStationPicked, getRawFare,
-        setExternal, launchRoute, setSheetSnap, cycleSheetSnap, clearRoute, toggleSegStations
+        setExternal, launchRoute, setSheetSnap, cycleSheetSnap, clearRoute, toggleSegStations, toggleExtraDrawer
     };
 })();
 
-// 5. Visual Line-Matrix Station Picker Modal
+// 5. Station Picker Modal
 const AuraPicker = {
     mode: 'origin',
     lineFilter: 'ALL',
     open(mode) {
         this.mode = mode;
         this.lineFilter = 'ALL';
-        const titles = { origin: '↗ 選擇起點車站', dest: '↘ 選擇終點車站', pin: '📺 新增雙向月台監測車站' };
+        const titles = { origin: '↗ 選擇起點車站', dest: '↘ 選擇終點車站', pin: '📺 新增看板車站' };
         document.getElementById('matrix-picker-title').innerText = titles[mode] || '選擇車站';
         document.getElementById('matrix-picker-input').value = '';
         document.getElementById('matrix-picker-modal').classList.remove('hidden');
@@ -988,8 +969,8 @@ const AuraPicker = {
     renderLines() {
         const bar = document.getElementById('matrix-picker-lines');
         const vis = MtrData.lines.filter(l => !l.isBranch);
-        let h = `<span onclick="AuraPicker.setLine('ALL')" style="padding:5px 11px;border-radius:14px;font-size:0.74rem;font-weight:800;cursor:pointer;white-space:nowrap;background:${this.lineFilter==='ALL'?'var(--aura-blue)':'var(--chip-inactive-bg)'};color:${this.lineFilter==='ALL'?'#fff':'var(--text-main)'};border:1px solid var(--glass-border);">全部</span>`;
-        h += vis.map(l => `<span onclick="AuraPicker.setLine('${l.id}')" style="padding:5px 11px;border-radius:14px;font-size:0.74rem;font-weight:800;cursor:pointer;white-space:nowrap;background:${l.color};opacity:${this.lineFilter===l.id?1:0.45};color:#fff;">${l.name}</span>`).join('');
+        let h = `<span onclick="AuraPicker.setLine('ALL')" style="padding:5px 11px;border-radius:12px;font-size:0.74rem;font-weight:800;cursor:pointer;white-space:nowrap;background:${this.lineFilter==='ALL'?'var(--aura-blue)':'var(--chip-inactive-bg)'};color:${this.lineFilter==='ALL'?'#fff':'var(--text-main)'};">全部</span>`;
+        h += vis.map(l => `<span onclick="AuraPicker.setLine('${l.id}')" style="padding:5px 11px;border-radius:12px;font-size:0.74rem;font-weight:800;cursor:pointer;white-space:nowrap;background:${l.color};opacity:${this.lineFilter===l.id?1:0.45};color:#fff;">${l.name}</span>`).join('');
         bar.innerHTML = h;
     },
     setLine(lid) {
@@ -1011,9 +992,9 @@ const AuraPicker = {
             const s = MtrData.stations[c];
             const ls = getStationLines(c);
             const col = ls[0] ? ls[0].color : '#3B82F6';
-            return `<div onclick="AuraPicker.pick('${c}')" style="background:var(--bento-bg);border:1px solid var(--glass-border);border-left:4px solid ${col};border-radius:12px;padding:10px;cursor:pointer;">
+            return `<div onclick="AuraPicker.pick('${c}')" style="background:var(--bento-bg);border:1px solid var(--glass-border);border-left:4px solid ${col};border-radius:10px;padding:9px;cursor:pointer;">
                 <div style="font-weight:900;font-size:0.92rem;">${s.name}</div>
-                <div style="font-size:0.65rem;color:var(--text-sub);margin-top:2px;">${c} • ${s.en || ''}</div>
+                <div style="font-size:0.65rem;color:var(--text-sub);margin-top:1px;">${s.en || ''}</div>
             </div>`;
         }).join('');
     },
@@ -1028,7 +1009,7 @@ const AuraPicker = {
     }
 };
 
-// 6. Tab 2: Station Hologram Hub (2-Col Bento Grid + 3-Tab Hologram Modal)
+// 6. Tab 2: Station Hologram Hub (Clean Grid + Centered Spatial Card Modal)
 const AuraHub = {
     lineFilter: 'ALL',
     query: '',
@@ -1041,8 +1022,8 @@ const AuraHub = {
     },
     renderLinePills() {
         const vis = MtrData.lines.filter(l => !l.isBranch);
-        let h = `<span onclick="AuraHub.setLine('ALL')" style="padding:6px 12px;border-radius:16px;font-size:0.75rem;font-weight:800;cursor:pointer;white-space:nowrap;background:${this.lineFilter==='ALL'?'var(--aura-blue)':'var(--bento-bg)'};color:${this.lineFilter==='ALL'?'#fff':'var(--text-main)'};border:1px solid var(--glass-border);">全部 (${Object.keys(MtrData.stations).length})</span>`;
-        h += vis.map(l => `<span onclick="AuraHub.setLine('${l.id}')" style="padding:6px 12px;border-radius:16px;font-size:0.75rem;font-weight:800;cursor:pointer;white-space:nowrap;background:${l.color};opacity:${this.lineFilter===l.id?1:0.5};color:#fff;">${l.name}</span>`).join('');
+        let h = `<span onclick="AuraHub.setLine('ALL')" style="padding:5px 12px;border-radius:14px;font-size:0.75rem;font-weight:800;cursor:pointer;white-space:nowrap;background:${this.lineFilter==='ALL'?'var(--aura-blue)':'var(--bento-bg)'};color:${this.lineFilter==='ALL'?'#fff':'var(--text-main)'};border:1px solid var(--glass-border);">全部車站</span>`;
+        h += vis.map(l => `<span onclick="AuraHub.setLine('${l.id}')" style="padding:5px 12px;border-radius:14px;font-size:0.75rem;font-weight:800;cursor:pointer;white-space:nowrap;background:${l.color};opacity:${this.lineFilter===l.id?1:0.5};color:#fff;">${l.name}</span>`).join('');
         document.getElementById('hub-line-pills').innerHTML = h;
     },
     setLine(lid) {
@@ -1068,17 +1049,11 @@ const AuraHub = {
             const ls = getStationLines(c);
             const tags = ls.map(l => `<span class="hub-line-tag" style="background:${l.color};">${l.name.replace('綫','')}</span>`).join('');
             return `<div class="hub-station-card" onclick="AuraHub.openHologram('${c}','pids')">
-                <div class="hub-card-top">
-                    <div>
-                        <div class="hub-sta-zh">${s.name}</div>
-                        <div class="hub-sta-en">${s.en || ''}</div>
-                    </div>
-                    <span class="hub-code-pill">${c}</span>
+                <div>
+                    <div class="hub-sta-zh">${s.name}</div>
+                    <div class="hub-sta-en">${s.en || ''}</div>
                 </div>
-                <div class="hub-card-bottom">
-                    <div class="hub-line-dots">${tags}</div>
-                    <div class="hub-fac-icons">${s.toilet?'🚻':''}${s.baby?'🍼':''}♿</div>
-                </div>
+                <div class="hub-line-dots">${tags}</div>
             </div>`;
         }).join('');
     },
@@ -1087,54 +1062,51 @@ const AuraHub = {
         this.currentModalTab = tab || 'pids';
         const s = MtrData.stations[staId];
         const ls = getStationLines(staId);
+        const primaryColor = ls[0] ? ls[0].color : '#0EA5E9';
         const modal = document.getElementById('hologram-modal');
         const sheet = document.getElementById('hologram-sheet-content');
         modal.classList.remove('hidden');
 
+        const lineBadges = ls.map(l => `<span style="background:${l.color};color:#fff;font-size:0.68rem;font-weight:800;padding:2px 8px;border-radius:6px;">${l.name}</span>`).join('');
+
         const headerHtml = `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;border-bottom:1px solid var(--glass-border);">
-                <div>
-                    <span style="font-size:1.32rem;font-weight:900;">${s.name}</span>
-                    <span style="font-size:0.82rem;color:var(--text-sub);margin-left:6px;">${s.en} (${staId})</span>
+            <div style="background:linear-gradient(135deg, ${primaryColor}33, rgba(15,23,42,0.4));border:1px solid ${primaryColor}55;border-radius:18px;padding:12px 14px;margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div>
+                        <div style="font-size:1.35rem;font-weight:900;">${s.name} <span style="font-size:0.82rem;color:var(--text-sub);font-weight:600;">${s.en}</span></div>
+                        <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;">${lineBadges}</div>
+                    </div>
+                    <button class="pids-icon-btn" onclick="AuraHub.closeHologram()">✕</button>
                 </div>
-                <button class="pids-icon-btn" onclick="AuraHub.closeHologram()">✕ 關閉</button>
+                <div style="display:flex;gap:12px;margin-top:10px;padding-top:8px;border-top:1px solid var(--glass-border);font-size:0.74rem;color:var(--text-sub);">
+                    <span>🌅 首車 <b>${s.first || '06:00'}</b></span>
+                    <span>🌙 尾車 <b>${s.last || '00:50'}</b></span>
+                    <span>${s.toilet ? '🚻 設洗手間' : '🚻 商場洗手間'}</span>
+                </div>
             </div>
-            <div style="display:flex;gap:8px;margin-top:10px;">
-                <button class="radar-btn" style="flex:1;" onclick="AuraHub.closeHologram();AuraDashboard.addStationMonitor('${staId}')">📺 釘選首頁看板</button>
+            <div style="display:flex;gap:6px;">
+                <button class="pids-icon-btn" style="flex:1;background:rgba(14,165,233,0.18);color:var(--aura-cyan);border-color:rgba(14,165,233,0.4);" onclick="AuraHub.closeHologram();AuraDashboard.addStationMonitor('${staId}')">📺 釘選看板</button>
                 <button class="pids-icon-btn" style="flex:1;" onclick="AuraHub.closeHologram();AuraCockpit.setExternal('${staId}','origin')">↗ 設為起點</button>
                 <button class="pids-icon-btn" style="flex:1;" onclick="AuraHub.closeHologram();AuraCockpit.setExternal('${staId}','dest')">↘ 設為終點</button>
             </div>
             <div class="holo-tab-bar">
-                <div class="holo-tab-btn ${this.currentModalTab==='pids'?'active':''}" onclick="AuraHub.openHologram('${staId}','pids')">📺 實時月台 PIDS</div>
-                <div class="holo-tab-btn ${this.currentModalTab==='exits'?'active':''}" onclick="AuraHub.openHologram('${staId}','exits')">🚪 出口與設施</div>
-                <div class="holo-tab-btn ${this.currentModalTab==='fares'?'active':''}" onclick="AuraHub.openHologram('${staId}','fares')">💳 車資與首末車</div>
+                <div class="holo-tab-btn ${this.currentModalTab==='pids'?'active':''}" onclick="AuraHub.openHologram('${staId}','pids')">📺 實時班次</div>
+                <div class="holo-tab-btn ${this.currentModalTab==='exits'?'active':''}" onclick="AuraHub.openHologram('${staId}','exits')">🚪 出口地標</div>
+                <div class="holo-tab-btn ${this.currentModalTab==='fares'?'active':''}" onclick="AuraHub.openHologram('${staId}','fares')">💳 車資速查</div>
             </div>
         `;
 
         if (this.currentModalTab === 'exits') {
-            const tGuide = TRANSFER_GUIDE[staId] ? TRANSFER_GUIDE[staId].default.tip : '一般車站大堂與月台扶手電梯連接';
             const exitsHtml = (s.exits || ['A: 主要出入口', 'B: 公共運輸交匯處']).map(e => {
                 const p = e.split(':');
-                return `<div style="padding:9px 12px;border-bottom:1px solid var(--glass-border);font-size:0.82rem;display:flex;gap:10px;align-items:center;">
-                    <span style="background:#00af41;color:#fff;font-weight:900;padding:2px 8px;border-radius:6px;font-size:0.74rem;">${p[0]}</span>
-                    <span>${p.slice(1).join(':')}</span>
+                return `<div style="padding:10px 12px;border-bottom:1px solid var(--glass-border);font-size:0.84rem;display:flex;gap:10px;align-items:center;">
+                    <span style="background:${primaryColor};color:#fff;font-weight:900;padding:2px 8px;border-radius:6px;font-size:0.75rem;">${p[0]}</span>
+                    <span style="font-weight:700;">${p.slice(1).join(':')}</span>
                 </div>`;
             }).join('');
 
             sheet.innerHTML = headerHtml + `
                 <div style="flex:1;overflow-y:auto;">
-                    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px;">
-                        <div style="background:var(--bento-bg);padding:10px;border-radius:12px;border:1px solid var(--glass-border);font-size:0.78rem;">
-                            <b>🚻 站內洗手間：</b>${s.toilet ? '<span style="color:#34D399;font-weight:800;">設有洗手間</span>' : '設於鄰近商場'}
-                        </div>
-                        <div style="background:var(--bento-bg);padding:10px;border-radius:12px;border:1px solid var(--glass-border);font-size:0.78rem;">
-                            <b>🍼 育嬰室設施：</b>${s.baby ? '<span style="color:#34D399;font-weight:800;">設有育嬰間</span>' : '無獨立育嬰間'}
-                        </div>
-                    </div>
-                    <div style="padding:9px 12px;border-radius:12px;background:rgba(14,165,233,0.1);border-left:3px solid var(--aura-cyan);font-size:0.76rem;margin-bottom:10px;">
-                        <b>🔄 轉乘月台構造秘笈：</b>${tGuide}
-                    </div>
-                    <div style="font-size:0.75rem;font-weight:800;color:var(--aura-cyan);margin-bottom:6px;">🚪 主要出口與地標指南</div>
                     <div style="background:var(--bento-bg);border-radius:14px;border:1px solid var(--glass-border);overflow:hidden;">${exitsHtml}</div>
                 </div>
             `;
@@ -1142,48 +1114,36 @@ const AuraHub = {
         }
 
         if (this.currentModalTab === 'fares') {
-            const hubs = ['CEN', 'ADM', 'CAB', 'TST', 'MOK', 'KOT', 'SHT', 'TUM', 'LOW'].filter(h => h !== staId);
+            const hubs = ['CEN', 'ADM', 'CAB', 'TST', 'MOK', 'KOT', 'TAW', 'FAN', 'TUM', 'LOW'].filter(h => h !== staId);
             const rows = hubs.map(h => {
                 const rf = AuraCockpit.getRawFare(staId, h);
                 const oct = Number(rf.oct);
                 const sng = Number(rf.sng || oct);
-                const con = Math.max(1.5, Math.round((oct / 2) * 10) / 10);
-                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--glass-border);cursor:pointer;" onclick="AuraHub.closeHologram();AuraCockpit.launchRoute('${staId}','${h}')">
-                    <div>
-                        <div style="font-weight:800;font-size:0.92rem;">往 ${MtrData.stations[h].name} <span style="font-size:0.7rem;color:var(--aura-cyan);">導航 ➔</span></div>
-                        <div style="font-size:0.72rem;color:var(--text-sub);">單程 $${sng.toFixed(1)} • 小童/學生 $${con.toFixed(1)} • 樂悠咭 $2.0</div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:1.1rem;font-weight:900;color:#10B981;">$${oct.toFixed(1)}</div>
-                        <div style="font-size:0.64rem;color:var(--text-sub);">成人八達通</div>
-                    </div>
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:1px solid var(--glass-border);cursor:pointer;" onclick="AuraHub.closeHologram();AuraCockpit.launchRoute('${staId}','${h}')">
+                    <span style="font-weight:800;font-size:0.9rem;">往 ${MtrData.stations[h].name} <span style="font-size:0.72rem;color:var(--text-sub);">(單程 $${sng.toFixed(1)})</span></span>
+                    <span style="font-size:1.02rem;font-weight:900;color:#10B981;">$${oct.toFixed(1)} ➔</span>
                 </div>`;
             }).join('');
 
             sheet.innerHTML = headerHtml + `
                 <div style="flex:1;overflow-y:auto;">
-                    <div style="display:flex;justify-content:space-between;padding:10px 12px;background:var(--bento-bg);border-radius:12px;border:1px solid var(--glass-border);font-size:0.8rem;margin-bottom:10px;">
-                        <span>🌅 <b>頭班車：</b>${s.first || '06:00'}</span>
-                        <span>🌙 <b>尾班車：</b>${s.last || '00:50'}</span>
-                    </div>
                     <div style="background:var(--bento-bg);border-radius:14px;border:1px solid var(--glass-border);overflow:hidden;">${rows}</div>
                 </div>
             `;
             return;
         }
 
-        // Default Tab: Live PIDS across all lines at this station
-        sheet.innerHTML = headerHtml + `<div id="holo-pids-body" style="flex:1;overflow-y:auto;padding-top:4px;"><div style="padding:20px;text-align:center;color:var(--text-sub);">正在同步月台實時班次...</div></div>`;
+        // Default Tab: Clean Live PIDS
+        sheet.innerHTML = headerHtml + `<div id="holo-pids-body" style="flex:1;overflow-y:auto;"><div style="padding:20px;text-align:center;color:var(--text-sub);">正在同步月台班次...</div></div>`;
         let pidsHtml = '';
         for (const l of ls) {
             const res = await fetchLiveMtrEta(l.id, staId);
             const sched = res ? res.schedule : null;
             const now = (res && res.sysTime) ? new Date(res.sysTime.replace(/-/g, '/')) : new Date();
-            const dirs = MTR_DIRECTIONS[l.id] || { UP: '上行', DOWN: '下行' };
 
             const renderDirRows = (dirKey, label) => {
                 if (isTerminusForDir(l.id, staId, dirKey)) {
-                    return `<div style="padding:8px 12px;font-size:0.76rem;color:var(--text-sub);">${label}：🏁 終點落客月台</div>`;
+                    return `<div style="padding:8px 12px;font-size:0.78rem;color:var(--text-sub);">${label}：終點落客月台</div>`;
                 }
                 const list = ((sched && sched[dirKey]) || [])
                     .map(t => ({ ...t, dateObj: new Date(t.time.replace(/-/g, '/')) }))
@@ -1193,20 +1153,20 @@ const AuraHub = {
                 return list.map(t => {
                     const m = calcEtaMin(t, now);
                     const dName = MtrData.stations[t.dest] ? MtrData.stations[t.dest].name : t.dest;
-                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;border-top:1px solid rgba(255,255,255,0.06);font-size:0.82rem;">
-                        <span><b>往 ${dName}</b> <span style="font-size:0.72rem;color:#94A3B8;margin-left:6px;">月台 ${t.plat} (${formatHHMM(t.dateObj)})</span></span>
-                        <span style="font-weight:900;color:#34D399;">${m === 0 ? '即將到站' : m + ' min'}</span>
+                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06);font-size:0.86rem;">
+                        <span><b>往 ${dName}</b> <span style="font-size:0.72rem;color:#94A3B8;margin-left:6px;">${t.plat}號月台</span></span>
+                        <span style="font-weight:900;color:#34D399;font-size:0.95rem;">${m === 0 ? '即將到站' : m + ' min'}</span>
                     </div>`;
                 }).join('');
             };
 
-            pidsHtml += `<div style="background:var(--pids-pane);color:#F8FAFC;border-radius:16px;overflow:hidden;margin-bottom:10px;border:1px solid var(--glass-border);">
+            pidsHtml += `<div style="background:var(--pids-pane);color:#F8FAFC;border-radius:14px;overflow:hidden;margin-bottom:8px;border:1px solid var(--glass-border);">
                 <div style="background:${l.color};padding:6px 12px;font-size:0.78rem;font-weight:900;color:#fff;display:flex;justify-content:space-between;">
-                    <span>${l.name} (${l.en})</span>
-                    <span>LIVE PIDS</span>
+                    <span>${l.name}</span>
+                    <span>LIVE</span>
                 </div>
-                ${renderDirRows('UP', '▲ 上行')}
-                ${renderDirRows('DOWN', '▼ 下行')}
+                ${renderDirRows('UP', '上行')}
+                ${renderDirRows('DOWN', '下行')}
             </div>`;
         }
         const bodyEl = document.getElementById('holo-pids-body');
@@ -1217,7 +1177,7 @@ const AuraHub = {
     }
 };
 
-// 7. Tab 3: Network Pulse & HKO Weather
+// 7. Tab 3: Network Pulse
 const AuraPulse = {
     drillMode: false,
     lines: [
@@ -1238,15 +1198,15 @@ const AuraPulse = {
     toggleDrill() {
         this.drillMode = !this.drillMode;
         const btn = document.getElementById('btn-drill-toggle');
-        if (btn) btn.innerText = this.drillMode ? '✅ 結束事故演練' : '🚨 颱風/事故演練';
+        if (btn) btn.innerText = this.drillMode ? '✅ 結束演練' : '🚨 事故演練';
         this.refresh(false);
-        AuraToast.show(this.drillMode ? '🚨 已啟動八號風球及信號故障應變演練' : '✅ 已恢復全網正常運作模式');
+        AuraToast.show(this.drillMode ? '🚨 已開啟事故應變演練' : '✅ 已恢復全網正常狀態');
     },
     async refresh(showFeedback) {
-        if (showFeedback) AuraToast.show('↻ 正在同步天文台與全網車務...');
+        if (showFeedback) AuraToast.show('↻ 正在同步全網車務...');
         let temp = 26;
         try {
-            const r = await fetchWithTimeout('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc', { timeout: 3000 });
+            const r = await fetchWithTimeout('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc', { timeout: 2800 });
             if (r.ok) {
                 const j = await r.json();
                 if (j.temperature && j.temperature.data && j.temperature.data[0]) temp = j.temperature.data[0].value;
@@ -1260,11 +1220,11 @@ const AuraPulse = {
 
         if (tEl) tEl.innerText = `${temp}°C`;
         if (this.drillMode) {
-            if (dEl) dEl.innerHTML = '<span style="color:#F43F5E;font-weight:800;">⚠️ 演習模式：八號風球及觀塘綫信號延誤生效中</span>';
+            if (dEl) dEl.innerHTML = '<span style="color:#F43F5E;font-weight:800;">⚠️ 演練：觀塘綫/東鐵綫延誤</span>';
             if (pill) pill.classList.add('alert');
             if (pillTxt) pillTxt.innerText = `⚠️ 事故演習 • ${temp}°C`;
         } else {
-            if (dEl) dEl.innerText = '現時無惡劣天氣警告 • 全網鐵路及露天段正常';
+            if (dEl) dEl.innerText = '全網鐵路及露天段正常';
             if (pill) pill.classList.remove('alert');
             if (pillTxt) pillTxt.innerText = `全網正常 • ${temp}°C`;
         }
@@ -1274,14 +1234,14 @@ const AuraPulse = {
         grid.innerHTML = this.lines.map(l => {
             const det = LINE_DETAILS[l.id] || {};
             const isDel = this.drillMode && (l.id === 'KTL' || l.id === 'EAL');
-            return `<div class="pulse-line-bento ${isDel?'delayed':''}" style="border-top:4px solid ${l.color};" onclick="this.querySelector('.alt-box').classList.toggle('hidden')">
+            return `<div class="pulse-line-bento ${isDel?'delayed':''}" style="border-left:4px solid ${l.color};" onclick="this.querySelector('.alt-box').classList.toggle('hidden')">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <span style="font-weight:900;font-size:1rem;">${l.name}</span>
-                    <span style="font-size:0.72rem;font-weight:800;color:${isDel?'#F43F5E':'#10B981'};">${isDel?'⚠️ 延誤 +12分':'● 正常'}</span>
+                    <span style="font-weight:900;font-size:0.98rem;">${l.name}</span>
+                    <span style="font-size:0.74rem;font-weight:800;color:${isDel?'#F43F5E':'#10B981'};">${isDel?'⚠️ 延誤':'● 正常'}</span>
                 </div>
-                <div style="font-size:0.72rem;color:var(--text-sub);margin-top:4px;">${det.cars || '8卡'} • 繁忙每 ${det.peak || '2.5分'}</div>
-                <div class="alt-box ${isDel?'':'hidden'}" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--glass-border);font-size:0.72rem;color:var(--aura-cyan);line-height:1.4;">
-                    <b>🚌 應變替代巴士：</b>${det.altTransport}
+                <div style="font-size:0.72rem;color:var(--text-sub);margin-top:3px;">繁忙每 ${det.peak || '2.5 分鐘'}一班</div>
+                <div class="alt-box ${isDel?'':'hidden'}" style="margin-top:7px;padding-top:7px;border-top:1px solid var(--glass-border);font-size:0.72rem;color:var(--aura-cyan);line-height:1.4;">
+                    <b>🚌 替代巴士：</b>${det.altTransport}
                 </div>
             </div>`;
         }).join('');
@@ -1295,7 +1255,7 @@ document.addEventListener('DOMContentLoaded', () => {
     AuraHub.init();
     AuraPulse.init();
     setTimeout(() => {
-        AuraCockpit.launchRoute('KOB', 'CEN');
+        AuraCockpit.launchRoute('KOB', 'FAN');
         AuraNav.switchTab(0);
-    }, 280);
+    }, 220);
 });
