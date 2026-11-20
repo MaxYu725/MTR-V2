@@ -2,222 +2,181 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>MTR Aura OS 3.6 Pro - 港鐵極光旗艦版</title>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#060913">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MTR Aura OS 3.7 Pro - 極光流體動效版</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <div id="aurora-mesh"></div>
-<div id="aura-toast">✨ MTR Aura OS 已就緒</div>
 
-<div id="aura-shell">
-    <!-- Top Header Bar (Minimal & Clear) -->
-    <header class="dynamic-island-header">
-        <div class="aura-brand">
+<div id="aura-app-shell">
+    <!-- Top Spatial Bar -->
+    <header id="aura-top-bar">
+        <div class="aura-brand-wrap" onclick="AuraNav.switchTab(0)">
             <div class="aura-orb-logo">Ж</div>
-            <span class="aura-brand-title">MTR AURA</span>
+            <div>
+                <div class="aura-title-txt">MTR AURA OS</div>
+                <div class="aura-clock-txt" id="aura-hkt-clock">HKT --:--:--</div>
+            </div>
         </div>
 
-        <div class="island-pill" id="dynamic-island-pill" onclick="AuraNav.switchTab(3)">
-            <span class="island-dot" id="island-status-dot"></span>
-            <span class="island-text" id="island-status-text">全網正常 • 26°C</span>
+        <div class="island-pill" id="aura-island-pill" onclick="AuraNav.switchTab(3)">
+            <span class="island-dot"></span>
+            <span id="island-status-txt">全網正常 • 24°C</span>
         </div>
 
         <div style="display:flex;gap:6px;" id="header-right-tools">
-            <button class="header-icon-btn" title="定位最近車站" onclick="AuraDashboard.locateNearest()">📡</button>
-            <button class="header-icon-btn" id="aura-theme-btn" title="切換深淺主題" onclick="AuraTheme.toggle()">☀️</button>
+            <button class="header-icon-btn" onclick="AuraDashboard.locateNearest()" title="GPS 定位最近車站">📡</button>
+            <button class="header-icon-btn" id="theme-toggle-btn" onclick="AuraTheme.toggle()" title="切換深淺色">☀️</button>
         </div>
     </header>
 
-    <!-- Main Viewport -->
-    <main id="aura-viewport">
-        <!-- VIEW 0: 極光看板 (Clean Dual-PIDS Focus) -->
-        <section class="aura-view active" id="view-dashboard">
+    <!-- 4 Main Spatial Views -->
+    <main id="aura-views-host">
+        <!-- VIEW 0: 極光看板 (Live Dual-PIDS Dashboard) -->
+        <section id="view-dashboard" class="aura-view active">
             <div class="quick-radar-strip">
-                <div class="quick-radar-row">
-                    <div>
-                        <span style="font-size:0.72rem;color:var(--aura-cyan);font-weight:800;">📍 最近車站</span>
-                        <div class="quick-nearest-sta" id="hero-nearest-sta">旺角 (約 120m)</div>
-                    </div>
-                    <div style="display:flex;gap:6px;">
-                        <button class="pids-icon-btn" id="hero-btn-origin" onclick="AuraCockpit.setExternal('MOK','origin')" style="color:var(--aura-cyan);border-color:rgba(56,189,248,0.4);">↗ 設為起點</button>
-                        <button class="pids-icon-btn" id="hero-btn-holo" onclick="AuraHub.openHologram('MOK')">詳情</button>
-                    </div>
+                <div style="min-width:0;">
+                    <div style="font-size:0.68rem;color:var(--aura-cyan);font-weight:800;">📡 最近港鐵站雷達</div>
+                    <div id="radar-nearest-title" style="font-size:0.95rem;font-weight:900;margin-top:2px;">九龍灣站 (KOB)</div>
+                    <div id="radar-nearest-sub" style="font-size:0.7rem;color:var(--text-sub);">觀塘綫 • 點擊右側即時定位</div>
                 </div>
-                <div class="commute-pills-scroll" id="commute-pills-bar"></div>
-            </div>
-
-            <div class="bento-section-bar">
-                <span class="bento-section-label">📺 實時月台班次看板</span>
-                <div style="display:flex;gap:14px;">
-                    <span class="bento-action-link" onclick="AuraDashboard.refreshAllBoards(true)">↻ 刷新</span>
-                    <span class="bento-action-link" onclick="AuraPicker.open('pin')">＋ 新增車站</span>
+                <div style="display:flex;gap:6px;flex-shrink:0;">
+                    <button class="pids-icon-btn" onclick="AuraDashboard.locateNearest()">定位</button>
+                    <button class="pids-icon-btn" style="background:var(--aura-blue);color:#fff;border:none;" onclick="AuraDashboard.navFromNearest()">出發</button>
                 </div>
             </div>
 
-            <div class="pids-bento-list" id="pids-board-container"></div>
+            <div class="commute-pills-row">
+                <button class="commute-pill" onclick="AuraCockpit.quickPlan('KOB','FAN')">🏠 九龍灣 ➔ 粉嶺</button>
+                <button class="commute-pill" onclick="AuraCockpit.quickPlan('KOB','CEN')">💼 九龍灣 ➔ 中環</button>
+                <button class="commute-pill" onclick="AuraCockpit.quickPlan('TAW','CEN')">🌊 大圍 ➔ 中環</button>
+                <button class="commute-pill" onclick="AuraCockpit.quickPlan('TSW','CAB')">🛍️ 荃灣 ➔ 銅鑼灣</button>
+            </div>
+
+            <div class="bento-sec-head">
+                <span class="bento-sec-title">雙月台實時列車看板 (LIVE PIDS)</span>
+                <span class="bento-action-link" onclick="AuraDashboard.refreshAllBoards(true)"><span id="dash-refresh-icon" style="display:inline-block;">↻</span> 刷新</span>
+            </div>
+
+            <div id="pids-boards-container"></div>
         </section>
 
-        <!-- VIEW 1: 路線導航艙 (Map + 3 Distinct Route Options) -->
-        <section class="aura-view" id="view-cockpit">
-            <div id="aura-map-canvas" class="hide-minor-labels"></div>
-
-            <!-- Top Search & 3-Route Selector Capsule -->
-            <div id="cockpit-top-capsule">
-                <div class="capsule-inputs-row">
-                    <div class="capsule-station-btn active-slot" id="slot-origin" onclick="AuraCockpit.focusSlot('origin')">
-                        <div class="capsule-slot-tag">
-                            <span>↗ 起點</span>
-                            <span style="color:var(--aura-cyan);" onclick="event.stopPropagation();AuraPicker.open('origin')">列表 ▾</span>
-                        </div>
-                        <div class="capsule-slot-val" id="slot-origin-val">九龍灣</div>
-                    </div>
-
-                    <button class="capsule-swap-circle" onclick="AuraCockpit.swapStations()" title="對調起訖站">⇅</button>
-
-                    <div class="capsule-station-btn" id="slot-dest" onclick="AuraCockpit.focusSlot('dest')">
-                        <div class="capsule-slot-tag">
-                            <span>↘ 終點</span>
-                            <span style="color:var(--aura-cyan);" onclick="event.stopPropagation();AuraPicker.open('dest')">列表 ▾</span>
-                        </div>
-                        <div class="capsule-slot-val" id="slot-dest-val">粉嶺</div>
-                    </div>
+        <!-- VIEW 1: 路綫導航艙 (State-Space Dijkstra + Leaflet Map) -->
+        <section id="view-cockpit" class="aura-view">
+            <div class="cockpit-capsule">
+                <div class="capsule-row">
+                    <button class="capsule-station-btn origin" onclick="AuraPicker.open('origin')">
+                        <div class="capsule-lbl"><span>↗ 起點 ORIGIN</span><span>選站 ▾</span></div>
+                        <div class="capsule-val" id="cockpit-origin-txt">九龍灣 (KOB)</div>
+                    </button>
+                    <button class="capsule-swap-circle" onclick="AuraCockpit.swapStations()" title="對調起終點">⇅</button>
+                    <button class="capsule-station-btn" onclick="AuraPicker.open('dest')">
+                        <div class="capsule-lbl"><span>↘ 終點 DEST</span><span>選站 ▾</span></div>
+                        <div class="capsule-val" id="cockpit-dest-txt">粉嶺 (FAN)</div>
+                    </button>
                 </div>
 
-                <!-- 3 Route Alternatives (Shows exact transfer hub!) -->
-                <div class="strategy-cards-row" id="strategy-comparison-bar">
-                    <div class="strategy-card active" data-mode="fastest" onclick="AuraCockpit.selectStrategy('fastest')">
-                        <div class="strategy-title" id="strat-title-fastest">⚡ 最快時間</div>
-                        <div class="strategy-sub" id="strat-sub-fastest">--</div>
-                    </div>
-                    <div class="strategy-card" data-mode="fewest" onclick="AuraCockpit.selectStrategy('fewest')">
-                        <div class="strategy-title" id="strat-title-fewest">🔄 最少轉乘</div>
-                        <div class="strategy-sub" id="strat-sub-fewest">--</div>
-                    </div>
-                    <div class="strategy-card" data-mode="comfort" onclick="AuraCockpit.selectStrategy('comfort')">
-                        <div class="strategy-title" id="strat-title-comfort">🛋️ 備選路線</div>
-                        <div class="strategy-sub" id="strat-sub-comfort">--</div>
-                    </div>
+                <div class="strategy-grid">
+                    <button class="strategy-card active" id="strat-btn-fastest" onclick="AuraCockpit.selectStrategy('fastest')">
+                        <div class="strat-title">⚡ 最快時間</div>
+                        <div class="strat-meta" id="strat-meta-fastest">-- 分 • -- 轉乘</div>
+                        <div class="strat-via" id="strat-via-fastest">計算中...</div>
+                    </button>
+                    <button class="strategy-card" id="strat-btn-fewest" onclick="AuraCockpit.selectStrategy('fewest')">
+                        <div class="strat-title">🔄 最少轉乘</div>
+                        <div class="strat-meta" id="strat-meta-fewest">-- 分 • -- 轉乘</div>
+                        <div class="strat-via" id="strat-via-fewest">計算中...</div>
+                    </button>
+                    <button class="strategy-card" id="strat-btn-cross" onclick="AuraCockpit.selectStrategy('cross')">
+                        <div class="strat-title">🚇 同月台優先</div>
+                        <div class="strat-meta" id="strat-meta-cross">-- 分 • -- 轉乘</div>
+                        <div class="strat-via" id="strat-via-cross">計算中...</div>
+                    </button>
                 </div>
             </div>
 
-            <!-- Right Map Controls -->
-            <div class="cockpit-map-tools">
-                <button class="cockpit-tool-btn" onclick="AuraCockpit.zoomIn()">＋</button>
-                <button class="cockpit-tool-btn" onclick="AuraCockpit.zoomOut()">－</button>
-                <button class="cockpit-tool-btn" onclick="AuraCockpit.resetMap()">🎯</button>
-                <button class="cockpit-tool-btn" onclick="AuraCockpit.toggleLabels()">🏷️</button>
-            </div>
-
-            <!-- Bottom Navigation Sheet -->
-            <div id="cockpit-route-sheet">
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px 4px 14px;">
-                    <div style="display:flex;gap:6px;">
-                        <button class="pids-icon-btn" onclick="AuraCockpit.setSheetSnap('mini')">看地圖</button>
-                        <button class="pids-icon-btn" onclick="AuraCockpit.setSheetSnap('normal')">標準</button>
-                        <button class="pids-icon-btn" onclick="AuraCockpit.setSheetSnap('tall')">展開</button>
-                    </div>
-                    <div style="width:40px;height:4px;background:rgba(148,163,184,0.4);border-radius:2px;cursor:pointer;" onclick="AuraCockpit.cycleSheetSnap()"></div>
-                    <div style="display:flex;gap:6px;">
-                        <button class="pids-icon-btn" style="color:var(--aura-cyan);" id="btn-bookmark-route">⭐ 收藏</button>
-                        <button class="pids-icon-btn" onclick="AuraCockpit.clearRoute()">✕</button>
-                    </div>
+            <div id="aura-map-wrap">
+                <div id="aura-map"></div>
+                <div class="map-mode-bar">
+                    <button class="cockpit-tool-btn" id="map-expand-btn" onclick="AuraCockpit.toggleMapSize()">⤢ 放大地圖</button>
+                    <button class="cockpit-tool-btn" onclick="AuraCockpit.fitRouteBounds()">🎯 置中路綫</button>
                 </div>
-
-                <!-- 3 Primary Metrics (First-Glance Focus) -->
-                <div class="route-hero-metrics" id="cockpit-hero-metrics"></div>
-
-                <!-- Collapsible Extra Details (All Fares + Train Car Consist) -->
-                <div id="cockpit-extra-drawer" style="padding:0 14px;"></div>
-
-                <!-- Clean Step-by-Step Timeline -->
-                <div id="cockpit-timeline-list" style="flex:1;overflow-y:auto;padding:8px 14px 12px 14px;"></div>
             </div>
+
+            <div id="cockpit-result-host"></div>
         </section>
 
-        <!-- VIEW 2: 車站全息 (Clean 2-Col Station Grid) -->
-        <section class="aura-view" id="view-hub">
-            <div style="position:sticky;top:0;z-index:20;background:var(--bg-deep);padding-bottom:8px;">
-                <div style="display:flex;align-items:center;background:var(--bento-bg);border:1px solid var(--glass-border);border-radius:14px;padding:9px 12px;gap:8px;margin-bottom:8px;">
-                    <span>🔍</span>
-                    <input type="text" id="hub-search-input" placeholder="搜尋車站 (如：九龍灣、金鐘、KOB)..." style="background:transparent;border:none;outline:none;color:var(--text-main);width:100%;font-size:0.9rem;" oninput="AuraHub.onSearch(this.value)">
-                </div>
-                <div id="hub-line-pills" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;"></div>
-            </div>
+        <!-- VIEW 2: 車站全息 (98-Station Bento Hub) -->
+        <section id="view-hub" class="aura-view">
+            <input type="text" id="hub-search-box" class="hub-search-input" placeholder="🔍 搜尋 98 個港鐵車站（中 / 英 / 代碼，如 KOB、九龍塘）..." oninput="AuraHub.renderGrid()">
+            <div class="hub-line-chips" id="hub-line-chips"></div>
             <div class="hub-bento-grid" id="hub-bento-grid"></div>
         </section>
 
-        <!-- VIEW 3: 全網脈搏 (Clean Line Status Grid) -->
-        <section class="aura-view" id="view-pulse">
-            <div class="quick-radar-strip" style="margin-bottom:12px;">
-                <div class="quick-radar-row">
-                    <div>
-                        <div style="font-size:0.72rem;color:var(--aura-cyan);font-weight:800;">🌤️ 天文台鐵路天氣</div>
-                        <div style="display:flex;align-items:baseline;gap:8px;margin-top:2px;">
-                            <span style="font-size:1.75rem;font-weight:900;" id="pulse-temp-val">26°C</span>
-                            <span style="font-size:0.78rem;color:var(--text-sub);" id="pulse-weather-desc">全網鐵路及露天段正常</span>
-                        </div>
-                    </div>
-                    <button class="pids-icon-btn" id="btn-drill-toggle" style="background:rgba(244,63,94,0.18);color:#F43F5E;border-color:rgba(244,63,94,0.4);" onclick="AuraPulse.toggleDrill()">🚨 事故演練</button>
+        <!-- VIEW 3: 全網脈搏 (HKO Weather + 10-Line Status & Drill) -->
+        <section id="view-pulse" class="aura-view">
+            <div class="weather-bento">
+                <div>
+                    <div style="font-size:0.68rem;color:var(--aura-cyan);font-weight:800;">🌤️ 香港天文台實時天氣 (HKO)</div>
+                    <div id="pulse-weather-main" style="font-size:1.35rem;font-weight:900;margin-top:2px;">24°C • 濕度 74%</div>
+                    <div id="pulse-weather-sub" style="font-size:0.72rem;color:var(--text-sub);margin-top:2px;">天文台總部 • 適合鐵路出行</div>
                 </div>
+                <button class="pids-icon-btn" id="pulse-drill-btn" onclick="AuraPulse.toggleDrill()" style="padding:8px 11px;">🚨 延誤演習</button>
             </div>
 
-            <div class="bento-section-bar">
-                <span class="bento-section-label">⚡ 各路綫實時狀態 (點擊查看應變巴士)</span>
-                <span class="bento-action-link" onclick="AuraPulse.refresh(true)">↻ 刷新</span>
+            <div class="bento-sec-head">
+                <span class="bento-sec-title">全港 10 條重鐵路綫狀態（點擊單綫模擬延誤）</span>
+                <span class="bento-action-link" onclick="AuraPulse.refresh(true)"><span id="pulse-refresh-icon" style="display:inline-block;">↻</span> 刷新</span>
             </div>
-            <div class="pulse-lines-grid" id="pulse-lines-grid"></div>
+
+            <div class="pulse-grid" id="pulse-lines-grid"></div>
         </section>
     </main>
 
-    <!-- Bottom Dock -->
+    <!-- Floating Spatial Bottom Dock with Liquid Active Pill -->
     <nav id="aura-spatial-dock">
-        <div class="dock-item active" data-tab="0" onclick="AuraNav.switchTab(0)">
+        <div id="dock-active-pill"></div>
+        <button class="dock-item active" onclick="AuraNav.switchTab(0)">
             <span class="dock-icon">✨</span>
             <span class="dock-label">極光看板</span>
-        </div>
-        <div class="dock-item" data-tab="1" onclick="AuraNav.switchTab(1)">
+        </button>
+        <button class="dock-item" onclick="AuraNav.switchTab(1)">
             <span class="dock-icon">🧭</span>
-            <span class="dock-label">路線導航</span>
-        </div>
-        <div class="dock-item" data-tab="2" onclick="AuraNav.switchTab(2)">
+            <span class="dock-label">路綫導航艙</span>
+        </button>
+        <button class="dock-item" onclick="AuraNav.switchTab(2)">
             <span class="dock-icon">🏢</span>
             <span class="dock-label">車站全息</span>
-        </div>
-        <div class="dock-item" data-tab="3" onclick="AuraNav.switchTab(3)">
+        </button>
+        <button class="dock-item" onclick="AuraNav.switchTab(3)">
             <span class="dock-icon">⚡</span>
             <span class="dock-label">全網脈搏</span>
-        </div>
+        </button>
     </nav>
 </div>
 
-<!-- Centered Modal 1: 車站全息艙 (Centered Spatial Card - No Top Blank Void!) -->
-<div class="aura-modal-backdrop hidden" id="hologram-modal" onclick="if(event.target===this)AuraHub.closeHologram()">
-    <div class="aura-modal-sheet" id="hologram-sheet-content"></div>
+<!-- Centered Station Hologram Modal -->
+<div class="aura-modal-backdrop hidden" id="station-hologram-modal" onclick="if(event.target===this)AuraHub.closeHologram()">
+    <div class="aura-modal-sheet" id="hologram-modal-content"></div>
 </div>
 
-<!-- Centered Modal 2: 快速選站器 -->
-<div class="aura-modal-backdrop hidden" id="matrix-picker-modal" onclick="if(event.target===this)AuraPicker.close()">
+<!-- Centered Station Picker Modal -->
+<div class="aura-modal-backdrop hidden" id="station-picker-modal" onclick="if(event.target===this)AuraPicker.close()">
     <div class="aura-modal-sheet">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <span style="font-size:1.05rem;font-weight:900;" id="matrix-picker-title">選擇車站</span>
-            <button class="pids-icon-btn" onclick="AuraPicker.close()">✕ 關閉</button>
+            <div id="picker-modal-title" style="font-size:1rem;font-weight:900;">選擇車站</div>
+            <button class="pids-icon-btn" onclick="AuraPicker.close()">✕</button>
         </div>
-        <div style="display:flex;align-items:center;background:var(--bento-bg);border:1px solid var(--glass-border);border-radius:12px;padding:8px 12px;gap:8px;margin-bottom:8px;">
-            <span>🔍</span>
-            <input type="text" id="matrix-picker-input" placeholder="輸入站名快速篩選..." style="background:transparent;border:none;outline:none;color:var(--text-main);width:100%;font-size:0.88rem;" oninput="AuraPicker.renderStations(this.value)">
-        </div>
-        <div id="matrix-picker-lines" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;flex-shrink:0;"></div>
-        <div id="matrix-picker-grid" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
+        <input type="text" id="picker-search-input" class="hub-search-input" placeholder="輸入車站名稱或代碼..." oninput="AuraPicker.renderList()">
+        <div id="picker-list-body" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:7px;"></div>
     </div>
 </div>
 
+<div id="aura-toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
 </body>

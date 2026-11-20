@@ -1,6 +1,6 @@
-// =========================================================
-// MTR AURA OS 3.6 PRO - Clean Hierarchy & State-Graph Routing
-// =========================================================
+/* =========================================================
+   MTR AURA OS 3.7 PRO — CORE ENGINE & MOTION CONTROLLER
+   ========================================================= */
 
 const AuraToast = {
     timer: null,
@@ -10,1252 +10,1028 @@ const AuraToast = {
         el.innerText = msg;
         el.classList.add('show');
         clearTimeout(this.timer);
-        this.timer = setTimeout(() => el.classList.remove('show'), 2200);
+        this.timer = setTimeout(() => el.classList.remove('show'), 2300);
     }
 };
 
-async function fetchWithTimeout(resource, options = {}) {
-    const { timeout = 3500 } = options;
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    try {
-        const res = await fetch(resource, { ...options, signal: controller.signal });
-        clearTimeout(id);
-        return res;
-    } catch (e) {
-        clearTimeout(id);
-        throw e;
-    }
-}
-
-function getApiId(id) {
-    return { 'TWH': 'KWH', 'QUO': 'QUB', 'TIN': 'TIH', 'SOW': 'SWH', 'WUM': 'WKS' }[id] || id;
-}
-
-function getApiLineId(lineId) {
-    return lineId.split('_')[0] === 'TKO' ? 'TKL' : lineId.split('_')[0];
-}
-
-function getStationLines(staId) {
-    return MtrData.lines.filter(l => !l.isBranch && ((l.searchPath && l.searchPath.includes(staId)) || l.path.includes(staId)));
-}
-
-function formatHHMM(dateObj) {
-    return `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
-}
-
-function calcEtaMin(t, nowObj) {
-    if (t.ttnt !== undefined) {
-        const p = parseInt(t.ttnt, 10);
-        if (!isNaN(p)) return Math.max(0, p);
-    }
-    return Math.max(0, Math.floor((t.dateObj - nowObj) / 60000));
-}
-
-function isTerminusForDir(lineId, staId, dirKey) {
-    const baseLine = lineId.split('_')[0];
-    const upTermini = {
-        'TWL': ['TSW'], 'KTL': ['TIK'], 'ISL': ['CHW'], 'TKO': ['POA', 'LHP'],
-        'EAL': ['LOW', 'LMC'], 'TML': ['WUM'], 'TCL': ['TUC'], 'AEL': ['AWE'],
-        'DRL': ['DIS'], 'SIL': ['SOH']
-    };
-    const downTermini = {
-        'TWL': ['CEN'], 'KTL': ['WHA'], 'ISL': ['KET'], 'TKO': ['NOP'],
-        'EAL': ['ADM'], 'TML': ['TUM'], 'TCL': ['HOK'], 'AEL': ['HOK'],
-        'DRL': ['SUN'], 'SIL': ['ADM']
-    };
-    if (dirKey === 'UP') return (upTermini[baseLine] || []).includes(staId);
-    if (dirKey === 'DOWN') return (downTermini[baseLine] || []).includes(staId);
-    return false;
-}
-
-function makeSimulatedSchedule(lineId, staId) {
-    const baseLine = lineId.split('_')[0];
-    const line = MtrData.lines.find(l => l.id === baseLine) || MtrData.lines[0];
-    const sp = line.searchPath || line.path;
-    const upTerm = sp[sp.length - 1];
-    const downTerm = sp[0];
-    const now = new Date();
-    const seed = (staId.charCodeAt(0) + baseLine.charCodeAt(0) + now.getMinutes()) % 3;
-    const hw = baseLine === 'AEL' ? 10 : (baseLine === 'DRL' ? 6 : 3);
-
-    const buildList = (dest, plat, dirKey) => {
-        if (isTerminusForDir(baseLine, staId, dirKey)) return [];
-        return [0, 1, 2].map(i => {
-            const m = seed + i * hw;
-            const d = new Date(now.getTime() + m * 60000);
-            const pad = n => String(n).padStart(2, '0');
-            let finalDest = dest;
-            if (baseLine === 'EAL' && dirKey === 'UP' && i % 2 === 1 && staId !== 'LOW') finalDest = 'LMC';
-            if (baseLine === 'TKO' && dirKey === 'UP' && i % 2 === 1 && staId !== 'POA') finalDest = 'LHP';
-            return {
-                dest: finalDest,
-                plat: String(plat),
-                time: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:00`,
-                ttnt: String(m)
-            };
-        });
-    };
-    return {
-        schedule: {
-            UP: buildList(upTerm, 1, 'UP'),
-            DOWN: buildList(downTerm, 2, 'DOWN')
-        },
-        sysTime: ""
-    };
-}
-
-async function fetchLiveMtrEta(lineId, staId) {
-    const apiLine = getApiLineId(lineId);
-    const apiSta = getApiId(staId);
-    try {
-        const res = await fetchWithTimeout(`https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${apiLine}&sta=${apiSta}&lang=TC`, { timeout: 3200 });
-        if (res.ok) {
-            const json = await res.json();
-            const sched = json.data && json.data[`${apiLine}-${apiSta}`];
-            if (json.status === 1 && sched && ((sched.UP && sched.UP.length > 0) || (sched.DOWN && sched.DOWN.length > 0))) {
-                return { schedule: sched, sysTime: json.sys_time || json.curr_time || "" };
-            }
-        }
-    } catch (e) {}
-    return makeSimulatedSchedule(lineId, staId);
-}
-
-// 1. Theme
 const AuraTheme = {
     isLight: false,
     init() {
-        try { this.isLight = localStorage.getItem('mtr_aura_theme') === 'light'; } catch (e) {}
-        this.apply();
+        try {
+            if (localStorage.getItem('aura_theme') === 'light') this.apply(true);
+        } catch(e) {}
     },
     toggle() {
-        this.isLight = !this.isLight;
-        try { localStorage.setItem('mtr_aura_theme', this.isLight ? 'light' : 'dark'); } catch (e) {}
-        this.apply();
-        if (window.AuraCockpit) AuraCockpit.syncMapTiles(this.isLight);
-        AuraToast.show(this.isLight ? '☀️ 已切換至日照淺色主題' : '🌙 已切換至極光深色主題');
+        this.apply(!this.isLight);
+        AuraToast.show(this.isLight ? '☀️ 已切換極光淺色模式' : '🌙 已切換極光深邃模式');
     },
-    apply() {
-        document.body.classList.toggle('light-mode', this.isLight);
-        const btn = document.getElementById('aura-theme-btn');
-        if (btn) btn.innerText = this.isLight ? '🌙' : '☀️';
+    apply(light) {
+        this.isLight = light;
+        document.body.classList.toggle('light-theme', light);
+        const btn = document.getElementById('theme-toggle-btn');
+        if (btn) btn.innerText = light ? '🌙' : '☀️';
+        try { localStorage.setItem('aura_theme', light ? 'light' : 'dark'); } catch(e) {}
+        if (window.AuraCockpit) AuraCockpit.updateTileLayer();
     }
 };
 
-// 2. Navigation
 const AuraNav = {
     currentTab: 0,
     switchTab(idx) {
         this.currentTab = idx;
         document.querySelectorAll('.aura-view').forEach((v, i) => v.classList.toggle('active', i === idx));
         document.querySelectorAll('.dock-item').forEach((d, i) => d.classList.toggle('active', i === idx));
+        const pill = document.getElementById('dock-active-pill');
+        if (pill) pill.style.transform = `translateX(${idx * 100}%)`;
         if (idx === 0) AuraDashboard.refreshAllBoards(false);
         if (idx === 1) {
             setTimeout(() => AuraCockpit.invalidateMap(), 80);
-            setTimeout(() => AuraCockpit.invalidateMap(), 280);
+            setTimeout(() => AuraCockpit.invalidateMap(), 300);
         }
+        if (idx === 2) AuraHub.renderGrid();
+        if (idx === 3) AuraPulse.refresh(false);
     }
 };
 
-// 3. Tab 0: Clean Dual-Platform PIDS Dashboard
-const AuraDashboard = {
-    monitored: [],
-    commutes: [],
-    simIdx: 0,
-    timer: null,
+/* =========================================================
+   LIVE MTR NEXT TRAIN API + REALISTIC FALLBACK GENERATOR
+   ========================================================= */
+async function fetchLiveMtrSchedule(lineId, staId) {
+    const apiLine = MTR_LINES[lineId] && MTR_LINES[lineId].base ? MTR_LINES[lineId].base : lineId;
+    const url = `https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${apiLine}&sta=${staId}&lang=TC`;
+    try {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 4500);
+        const res = await fetch(url, { signal: ctrl.signal });
+        clearTimeout(tid);
+        if (res.ok) {
+            const json = await res.json();
+            const key = `${apiLine}-${staId}`;
+            if (json && json.status === 1 && json.data && json.data[key]) {
+                return { live: true, data: json.data[key] };
+            }
+        }
+    } catch(e) {}
+    return { live: false, data: buildFallbackSchedule(apiLine, staId) };
+}
 
+function buildFallbackSchedule(lineId, staId) {
+    const line = MTR_LINES[lineId];
+    if (!line) return { UP: [], DOWN: [] };
+    const now = Date.now();
+    const seed = (staId.charCodeAt(0) + staId.charCodeAt(1) + Math.floor(now / 30000)) % 4;
+    const upDest = line.stations[line.stations.length - 1];
+    const dnDest = line.stations[0];
+    const makeTrains = (dest, plat, offset) => [0, 1, 2].map(i => {
+        const mins = offset + i * 3;
+        const dt = new Date(now + mins * 60000);
+        const hh = String(dt.getHours()).padStart(2, '0');
+        const mm = String(dt.getMinutes()).padStart(2, '0');
+        return { dest, plat: String(plat), ttnt: String(mins), time: `2026-01-01 ${hh}:${mm}:00` };
+    });
+    return {
+        UP: staId === upDest ? [] : makeTrains(upDest, 1, seed),
+        DOWN: staId === dnDest ? [] : makeTrains(dnDest, 2, (seed + 2) % 4)
+    };
+}
+
+function isTerminusForDir(lineId, staId, dirKey) {
+    const line = MTR_LINES[lineId];
+    if (!line) return false;
+    if (dirKey === 'UP') return staId === line.stations[line.stations.length - 1] && staId !== 'TKO' && staId !== 'SHS';
+    return staId === line.stations[0];
+}
+
+/* =========================================================
+   VIEW 0: DUAL-PLATFORM PIDS DASHBOARD
+   ========================================================= */
+const AuraDashboard = {
+    nearestSta: 'KOB',
+    pinned: [
+        { lineId: 'KTL', staId: 'KOB' },
+        { lineId: 'EAL', staId: 'KOT' },
+        { lineId: 'ISL', staId: 'ADM' }
+    ],
     init() {
         try {
-            const m = localStorage.getItem('mtr_aura_monitored');
-            if (m) this.monitored = JSON.parse(m);
-        } catch (e) {}
-        if (!this.monitored || this.monitored.length === 0) {
-            this.monitored = [
-                { lineId: 'KTL', staId: 'KOB' },
-                { lineId: 'TWL', staId: 'TST' },
-                { lineId: 'ISL', staId: 'ADM' }
-            ];
-            this.saveMonitored();
-        }
-
-        try {
-            const c = localStorage.getItem('mtr_aura_commutes');
-            if (c) this.commutes = JSON.parse(c);
-        } catch (e) {}
-        if (!this.commutes || this.commutes.length === 0) {
-            this.commutes = [
-                { from: 'KOB', to: 'FAN' },
-                { from: 'KOB', to: 'CEN' },
-                { from: 'ADM', to: 'TST' }
-            ];
-            this.saveCommutes();
-        }
-
-        this.renderCommutes();
+            const saved = JSON.parse(localStorage.getItem('aura_pinned_v37') || 'null');
+            if (Array.isArray(saved) && saved.length) this.pinned = saved;
+        } catch(e) {}
+        this.renderBoards();
         this.refreshAllBoards(false);
-        if (this.timer) clearInterval(this.timer);
-        this.timer = setInterval(() => this.refreshAllBoards(false), 25000);
     },
-
-    saveMonitored() {
-        try { localStorage.setItem('mtr_aura_monitored', JSON.stringify(this.monitored)); } catch (e) {}
+    savePinned() {
+        try { localStorage.setItem('aura_pinned_v37', JSON.stringify(this.pinned)); } catch(e) {}
     },
-    saveCommutes() {
-        try { localStorage.setItem('mtr_aura_commutes', JSON.stringify(this.commutes)); } catch (e) {}
-    },
-
-    addStationMonitor(staId) {
+    pinStation(staId) {
         const lines = getStationLines(staId);
-        const lineId = lines[0] ? lines[0].id : 'TWL';
-        if (!this.monitored.find(m => m.staId === staId && m.lineId === lineId)) {
-            this.monitored.unshift({ lineId, staId });
-            this.saveMonitored();
-        }
-        AuraNav.switchTab(0);
-        this.refreshAllBoards(false);
-        AuraToast.show(`📺 已新增 ${MtrData.stations[staId].name}站 看板`);
-    },
-
-    switchCardLine(idx, newLineId) {
-        if (this.monitored[idx]) {
-            this.monitored[idx].lineId = newLineId;
-            this.saveMonitored();
-            this.refreshAllBoards(false);
-        }
-    },
-
-    removeMonitor(idx) {
-        this.monitored.splice(idx, 1);
-        this.saveMonitored();
-        this.refreshAllBoards(false);
-    },
-
-    addCommuteBookmark(from, to) {
-        this.commutes = this.commutes.filter(c => !(c.from === from && c.to === to));
-        this.commutes.unshift({ from, to });
-        this.saveCommutes();
-        this.renderCommutes();
-        AuraToast.show(`⭐ 已收藏「${MtrData.stations[from].name} ➔ ${MtrData.stations[to].name}」`);
-    },
-
-    removeCommute(idx, e) {
-        if (e) e.stopPropagation();
-        this.commutes.splice(idx, 1);
-        this.saveCommutes();
-        this.renderCommutes();
-    },
-
-    renderCommutes() {
-        const bar = document.getElementById('commute-pills-bar');
-        if (!bar) return;
-        if (this.commutes.length === 0) {
-            bar.innerHTML = `<span style="font-size:0.74rem;color:var(--text-sub);">於「路線導航」可一鍵收藏常用路線</span>`;
+        const lineId = lines[0] || 'KTL';
+        const exists = this.pinned.some(p => p.staId === staId && p.lineId === lineId);
+        if (exists) {
+            AuraToast.show(`📌 ${MTR_STATIONS[staId].name}站已在首頁看板`);
             return;
         }
-        bar.innerHTML = this.commutes.map((c, idx) => {
-            const fName = MtrData.stations[c.from] ? MtrData.stations[c.from].name : c.from;
-            const tName = MtrData.stations[c.to] ? MtrData.stations[c.to].name : c.to;
-            const fareObj = AuraCockpit.getRawFare(c.from, c.to);
-            const fareStr = fareObj ? `$${Number(fareObj.oct).toFixed(1)}` : '';
-            return `<div class="commute-pill" onclick="AuraCockpit.launchRoute('${c.from}','${c.to}')">
-                <span>${fName} ➔ ${tName}</span>
-                <span style="color:#10B981;">${fareStr}</span>
-                <span style="color:var(--text-sub);font-size:0.65rem;" onclick="AuraDashboard.removeCommute(${idx}, event)">✕</span>
-            </div>`;
-        }).join('');
+        this.pinned.unshift({ lineId, staId });
+        if (this.pinned.length > 6) this.pinned.pop();
+        this.savePinned();
+        this.renderBoards();
+        this.refreshAllBoards(false);
+        AuraToast.show(`📌 已釘選 ${MTR_STATIONS[staId].name}站至首頁看板`);
     },
-
-    locateNearest() {
-        const titleEl = document.getElementById('hero-nearest-sta');
-        if (titleEl) titleEl.innerText = '正在掃描...';
-
-        const applyNearest = (lat, lon) => {
-            let best = 'MOK', minD = 1e9;
-            Object.keys(MtrData.stations).forEach(code => {
-                const s = MtrData.stations[code];
-                const d = Math.hypot((s.lat - lat) * 111300, (s.lon - lon) * 102800);
-                if (d < minD) { minD = d; best = code; }
-            });
-            const st = MtrData.stations[best];
-            const distM = Math.max(45, Math.round(minD));
-            if (titleEl) titleEl.innerText = `${st.name} (約 ${distM}m)`;
-            const btnO = document.getElementById('hero-btn-origin');
-            const btnH = document.getElementById('hero-btn-holo');
-            if (btnO) btnO.setAttribute('onclick', `AuraCockpit.setExternal('${best}','origin')`);
-            if (btnH) btnH.setAttribute('onclick', `AuraHub.openHologram('${best}')`);
-            AuraToast.show(`📡 最近車站：${st.name}站`);
-        };
-
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                p => applyNearest(p.coords.latitude, p.coords.longitude),
-                () => {
-                    const hubs = [[22.3236,114.2140],[22.3198,114.1694],[22.2815,114.1580],[22.3820,114.1870]];
-                    const pick = hubs[this.simIdx++ % hubs.length];
-                    applyNearest(pick[0], pick[1]);
-                },
-                { timeout: 2000 }
-            );
-        } else {
-            applyNearest(22.3236, 114.2140);
-        }
-    },
-
-    async refreshAllBoards(showFeedback) {
-        if (showFeedback) AuraToast.show('↻ 正在同步實時班次...');
-        const container = document.getElementById('pids-board-container');
-        if (!container) return;
-        if (this.monitored.length === 0) {
-            container.innerHTML = `<div style="text-align:center;padding:32px;background:var(--bento-bg);border-radius:20px;border:1px dashed var(--glass-border);">
-                <div style="font-weight:800;margin-bottom:10px;">尚未新增監測車站</div>
-                <button class="pids-icon-btn" style="color:var(--aura-cyan);" onclick="AuraPicker.open('pin')">＋ 新增車站</button>
-            </div>`;
+    removePin(idx) {
+        if (this.pinned.length <= 1) {
+            AuraToast.show('最少保留一個首頁看板車站');
             return;
         }
-
-        container.innerHTML = this.monitored.map((m, idx) => {
-            const sta = MtrData.stations[m.staId] || { name: m.staId };
-            const staLines = getStationLines(m.staId);
-            const curLine = MtrData.lines.find(l => l.id === m.lineId) || staLines[0] || MtrData.lines[0];
-            const dirs = MTR_DIRECTIONS[curLine.id] || { UP: '上行', DOWN: '下行' };
-
-            const lineSwitcher = staLines.map(l =>
-                `<span onclick="AuraDashboard.switchCardLine(${idx},'${l.id}')" style="cursor:pointer;padding:2px 8px;border-radius:6px;font-size:0.68rem;font-weight:800;color:#fff;background:${l.color};opacity:${l.id===curLine.id?1:0.32};">${l.name.replace('綫','')}</span>`
-            ).join('');
-
-            return `<div class="pids-station-card">
-                <div class="pids-card-header">
-                    <div class="pids-line-bar" style="background:${curLine.color};"></div>
-                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                        <span class="pids-sta-name">${sta.name}</span>
-                        <div style="display:flex;gap:4px;">${lineSwitcher}</div>
+        this.pinned.splice(idx, 1);
+        this.savePinned();
+        this.renderBoards();
+        this.refreshAllBoards(false);
+    },
+    renderBoards() {
+        const host = document.getElementById('pids-boards-container');
+        if (!host) return;
+        host.innerHTML = this.pinned.map((m, idx) => {
+            const st = MTR_STATIONS[m.staId] || { name: m.staId, en: '' };
+            const ln = MTR_LINES[m.lineId] || { name: m.lineId, color: '#38BDF8', up: '上行', down: '下行' };
+            return `<div class="pids-station-card anim-stagger" style="--i:${idx};">
+                <div class="pids-card-head">
+                    <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="AuraHub.openHologram('${m.staId}','pids')">
+                        <div class="pids-line-bar" style="background:${ln.color};"></div>
+                        <div>
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <span class="pids-sta-name">${st.name}</span>
+                                <span class="pids-line-tag" style="background:${ln.color};">${ln.name}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div style="display:flex;gap:6px;">
-                        <button class="pids-icon-btn" onclick="AuraHub.openHologram('${m.staId}')">詳情</button>
-                        <button class="pids-icon-btn" onclick="AuraDashboard.removeMonitor(${idx})">✕</button>
+                    <div style="display:flex;gap:5px;">
+                        <button class="pids-icon-btn" onclick="AuraCockpit.setOriginAndGo('${m.staId}')">出發</button>
+                        <button class="pids-icon-btn" onclick="AuraDashboard.removePin(${idx})">✕</button>
                     </div>
                 </div>
-
                 <div class="pids-dual-grid">
-                    <div class="pids-dir-pane" onclick="AuraHub.openHologram('${m.staId}')">
-                        <div class="pids-dest-row">
-                            <span class="pids-dest-main" id="dest-up-${idx}">往 ${dirs.UP}</span>
-                            <span class="pids-plat-badge" id="plat-up-${idx}">1號月台</span>
-                        </div>
-                        <div class="pids-eta-hero">
+                    <div class="pids-pane">
+                        <div class="pids-dir-label" id="dest-up-${idx}">往 ${ln.up}</div>
+                        <div class="pids-eta-row">
                             <span class="pids-eta-num" id="eta-up-${idx}">--</span>
                             <span class="pids-eta-unit" id="unit-up-${idx}">min</span>
                         </div>
+                        <div class="pids-rail-track"><div class="pids-rail-fill" id="prog-up-${idx}" style="width:25%;"></div></div>
                         <div class="pids-sub-eta" id="next-up-${idx}">同步中...</div>
                     </div>
-
-                    <div class="pids-dir-pane" onclick="AuraHub.openHologram('${m.staId}')">
-                        <div class="pids-dest-row">
-                            <span class="pids-dest-main" id="dest-down-${idx}">往 ${dirs.DOWN}</span>
-                            <span class="pids-plat-badge" style="color:#F472B6;border-color:rgba(244,114,182,0.4);background:rgba(244,114,182,0.14);" id="plat-down-${idx}">2號月台</span>
-                        </div>
-                        <div class="pids-eta-hero">
+                    <div class="pids-pane">
+                        <div class="pids-dir-label" id="dest-down-${idx}">往 ${ln.down}</div>
+                        <div class="pids-eta-row">
                             <span class="pids-eta-num" id="eta-down-${idx}">--</span>
                             <span class="pids-eta-unit" id="unit-down-${idx}">min</span>
                         </div>
+                        <div class="pids-rail-track"><div class="pids-rail-fill down-fill" id="prog-down-${idx}" style="width:25%;"></div></div>
                         <div class="pids-sub-eta" id="next-down-${idx}">同步中...</div>
                     </div>
                 </div>
             </div>`;
         }).join('');
-
-        for (let idx = 0; idx < this.monitored.length; idx++) {
-            const m = this.monitored[idx];
-            const res = await fetchLiveMtrEta(m.lineId, m.staId);
-            const sched = res ? res.schedule : null;
-            const now = (res && res.sysTime) ? new Date(res.sysTime.replace(/-/g, '/')) : new Date();
-
+    },
+    async refreshAllBoards(showFeedback) {
+        if (showFeedback) {
+            AuraToast.show('↻ 正在同步實時班次...');
+            const ic = document.getElementById('dash-refresh-icon');
+            if (ic) { ic.classList.remove('spinning-icon'); void ic.offsetWidth; ic.classList.add('spinning-icon'); }
+        }
+        await Promise.all(this.pinned.map(async (m, idx) => {
+            const res = await fetchLiveMtrSchedule(m.lineId, m.staId);
             const fillPane = (dirKey, suffix) => {
                 const etaEl = document.getElementById(`eta-${suffix}-${idx}`);
                 const unitEl = document.getElementById(`unit-${suffix}-${idx}`);
-                const platEl = document.getElementById(`plat-${suffix}-${idx}`);
                 const destEl = document.getElementById(`dest-${suffix}-${idx}`);
                 const nextEl = document.getElementById(`next-${suffix}-${idx}`);
+                const progEl = document.getElementById(`prog-${suffix}-${idx}`);
                 if (!etaEl) return;
 
                 if (isTerminusForDir(m.lineId, m.staId, dirKey)) {
                     etaEl.innerText = '落客終點';
                     etaEl.className = 'pids-eta-num terminus';
                     if (unitEl) unitEl.innerText = '';
+                    if (progEl) progEl.style.width = '100%';
                     if (nextEl) nextEl.innerText = '此方向為終點站';
                     return;
                 }
-
-                const rawList = (sched && sched[dirKey]) ? sched[dirKey] : [];
-                const trains = rawList.map(t => ({ ...t, dateObj: new Date(t.time.replace(/-/g, '/')) })).sort((a, b) => a.dateObj - b.dateObj);
-
-                if (trains.length === 0) {
-                    etaEl.innerText = '暫無班次';
+                const list = (res.data && res.data[dirKey]) ? res.data[dirKey] : [];
+                if (!list.length) {
+                    etaEl.innerText = '--';
                     etaEl.className = 'pids-eta-num terminus';
                     if (unitEl) unitEl.innerText = '';
-                    if (nextEl) nextEl.innerText = '非行車時段';
+                    if (progEl) progEl.style.width = '8%';
+                    if (nextEl) nextEl.innerText = '暫無班次資料';
                     return;
                 }
-
-                const m0 = calcEtaMin(trains[0], now);
-                const d0Name = MtrData.stations[trains[0].dest] ? MtrData.stations[trains[0].dest].name : trains[0].dest;
-                if (destEl) destEl.innerText = `往 ${d0Name}`;
-                if (platEl) platEl.innerText = `${trains[0].plat || (dirKey === 'UP' ? '1' : '2')}號月台`;
-
+                const first = list[0];
+                const dName = (MTR_STATIONS[first.dest] && MTR_STATIONS[first.dest].name) || first.dest;
+                if (destEl) destEl.innerText = `往 ${dName} • 月台 ${first.plat || '-'}`;
+                const m0 = Math.max(0, parseInt(first.ttnt, 10) || 0);
                 if (m0 === 0) {
                     etaEl.innerText = '即將到站';
                     etaEl.className = 'pids-eta-num arriving';
                     if (unitEl) unitEl.innerText = '';
+                    if (progEl) progEl.style.width = '100%';
                 } else {
                     etaEl.innerText = m0;
-                    etaEl.className = 'pids-eta-num';
+                    etaEl.className = 'pids-eta-num eta-pop';
                     if (unitEl) unitEl.innerText = 'min';
+                    if (progEl) progEl.style.width = `${Math.max(15, Math.min(96, Math.round((1 - Math.min(m0, 10) / 10) * 100)))}%`;
                 }
-
-                const subMins = trains.slice(1, 3).map(t => {
-                    const mi = calcEtaMin(t, now);
-                    return mi === 0 ? '即將' : `${mi} min`;
-                });
                 if (nextEl) {
-                    nextEl.innerHTML = subMins.length > 0 ? `下班：<b>${subMins.join(' / ')}</b>` : '尾班車已開出';
+                    const tail = list.slice(1, 3).map(x => `${x.ttnt}分`).join(' / ');
+                    nextEl.innerText = tail ? `隨後班次：${tail}${res.live ? '' : ' (推算)'}` : (res.live ? '實時同步' : '推算班次');
                 }
             };
-
             fillPane('UP', 'up');
             fillPane('DOWN', 'down');
+        }));
+    },
+    locateNearest() {
+        const titleEl = document.getElementById('radar-nearest-title');
+        const subEl = document.getElementById('radar-nearest-sub');
+        if (titleEl) titleEl.innerText = '正在掃描...';
+        const strip = document.querySelector('#view-dashboard .quick-radar-strip');
+        if (strip) { strip.classList.remove('radar-scanning'); void strip.offsetWidth; strip.classList.add('radar-scanning'); }
+
+        const finishWithCoords = (lat, lng, isFallback) => {
+            let bestCode = 'KOB', bestDist = Infinity;
+            Object.entries(MTR_STATIONS).forEach(([code, s]) => {
+                const d = Math.hypot((s.lat - lat) * 111, (s.lng - lng) * 102);
+                if (d < bestDist) { bestDist = d; bestCode = code; }
+            });
+            this.nearestSta = bestCode;
+            const st = MTR_STATIONS[bestCode];
+            const lines = getStationLines(bestCode).map(id => MTR_LINES[id].name).join(' / ');
+            if (titleEl) titleEl.innerText = `${st.name}站 (${bestCode})`;
+            if (subEl) subEl.innerText = isFallback
+                ? `${lines} • 預設九龍東定位`
+                : `${lines} • 距離約 ${bestDist < 1 ? Math.round(bestDist * 1000) + 'm' : bestDist.toFixed(1) + 'km'}`;
+            AuraToast.show(`📡 已鎖定最近車站：${st.name}站`);
+        };
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                pos => finishWithCoords(pos.coords.latitude, pos.coords.longitude, false),
+                () => finishWithCoords(22.3235, 114.2141, true),
+                { timeout: 4000 }
+            );
+        } else {
+            finishWithCoords(22.3235, 114.2141, true);
         }
+    },
+    navFromNearest() {
+        AuraCockpit.setOriginAndGo(this.nearestSta);
     }
 };
 
-// 4. Tab 1: Spatial Route Cockpit (State-Graph Multi-Route Engine)
+/* =========================================================
+   VIEW 1: ROUTE COCKPIT — (station, baseLine) STATE-SPACE DIJKSTRA
+   ========================================================= */
 const AuraCockpit = (function() {
-    let map = null, tileLayer = null, linesLayer = null, highlightLayer = null, stationsLayer = null;
-    let activeSlot = 'origin', originSta = 'KOB', destSta = 'FAN';
-    let currentStrategy = 'fewest';
-    let sheetSnap = 'normal';
+    let originSta = 'KOB';
+    let destSta = 'FAN';
+    let activeStrategy = 'fastest';
     let cachedRoutes = {};
-    let faresDB = null;
-    let showAllLabels = false;
-    const graph = {};
+    let map = null;
+    let tileLayer = null;
+    let routeLayerGroup = null;
+    let mapExpanded = false;
 
-    const HEADWAYS = { 'ISL':2.5,'TWL':2.5,'KTL':2.5,'TKO':3.5,'EAL':3.5,'TML':3.5,'TCL':4.5,'AEL':10,'DRL':8,'SIL':3.5,'DEFAULT':3.5 };
+    function buildStateGraph() {
+        const adj = {};
+        const addEdge = (u, v, time, type, lineId, walkMin, isCross) => {
+            if (!adj[u]) adj[u] = [];
+            adj[u].push({ to: v, time, type, lineId, walkMin: walkMin || 0, isCross: !!isCross });
+        };
 
-    // Realistic MTR segment travel times (minutes)
-    const REAL_SEG_MINS = {
-        'KOT-TAW': 3.8, 'TAW-SHT': 2.2, 'SHT-FOT': 2.2, 'FOT-UNI': 2.8, 'UNI-TAP': 5.2, 'TAP-TWO': 2.2, 'TWO-FAN': 4.8, 'FAN-SHS': 2.5, 'SHS-LOW': 3.8, 'SHS-LMC': 4.5,
-        'ADM-EXC': 2.2, 'EXC-HUH': 3.8, 'HUH-MKK': 2.5, 'MKK-KOT': 2.5,
-        'DIH-HIK': 2.8, 'HIK-TAW': 2.2,
-        'TWW-KSR': 6.5, 'KSR-YUL': 3.5, 'TIS-SIH': 3.8,
-        'LAK-TSY': 3.2, 'TSY-SUN': 5.2, 'SUN-TUC': 6.8,
-        'YAT-QUO': 4.2, 'NOP-QUO': 1.8, 'ADM-TST': 3.2, 'ADM-OCP': 4.2
-    };
-
-    function getSegWeight(u, v) {
-        return REAL_SEG_MINS[`${u}-${v}`] || REAL_SEG_MINS[`${v}-${u}`] || 2.1;
-    }
-
-    function getTransferInfo(staId, fromL, toL) {
-        const bf = fromL.split('_')[0], bt = toL.split('_')[0];
-        const g = TRANSFER_GUIDE[staId];
-        let walk = 2.5, cross = false, tip = '經大堂扶手電梯轉乘', cars = [4, 5, 6];
-        if (g) {
-            const spec = g[`${bf}-${bt}`] || g.default;
-            if (spec) {
-                walk = spec.walk;
-                cross = !!spec.crossPlatform;
-                tip = spec.tip;
-                if (tip.includes('3-5')) cars = [3, 4, 5];
-                else if (tip.includes('3-6')) cars = [3, 4, 5, 6];
-                else if (tip.includes('5-7')) cars = [5, 6, 7];
-                else if (tip.includes('4-5')) cars = [4, 5];
-            }
-        }
-        const waitMax = HEADWAYS[bt] || 3.5;
-        return { walk, waitMax, avg: walk + waitMax / 2, cross, tip, cars };
-    }
-
-    function buildNetworkGraph() {
-        Object.keys(MtrData.stations).forEach(s => graph[s] = []);
-        MtrData.lines.forEach(line => {
-            for (let i = 0; i < line.path.length - 1; i++) {
-                const u = line.path[i], v = line.path[i + 1];
-                if (MtrData.stations[u] && MtrData.stations[v]) {
-                    const wt = getSegWeight(u, v);
-                    graph[u].push({ node: v, lineId: line.id, lineColor: line.color, lineName: line.name, weight: wt });
-                    graph[v].push({ node: u, lineId: line.id, lineColor: line.color, lineName: line.name, weight: wt });
+        const stationBaseLines = {};
+        Object.values(MTR_LINES).forEach(line => {
+            const base = line.base || line.id;
+            const stas = line.stations;
+            for (let i = 0; i < stas.length; i++) {
+                const s = stas[i];
+                if (!stationBaseLines[s]) stationBaseLines[s] = new Set();
+                stationBaseLines[s].add(base);
+                if (i < stas.length - 1) {
+                    const a = stas[i], b = stas[i + 1];
+                    const sa = MTR_STATIONS[a], sb = MTR_STATIONS[b];
+                    const distKm = Math.hypot((sa.lat - sb.lat) * 111, (sa.lng - sb.lng) * 102);
+                    const segMin = base === 'AEL'
+                        ? Math.max(4, Math.round(distKm * 1.1))
+                        : Math.max(2, Math.min(7, Math.round(1.4 + distKm * 1.35)));
+                    addEdge(`${a}|${base}`, `${b}|${base}`, segMin, 'ride', base);
+                    addEdge(`${b}|${base}`, `${a}|${base}`, segMin, 'ride', base);
                 }
             }
         });
-        if (graph['CEN'] && graph['HOK']) {
-            graph['CEN'].push({ node: 'HOK', lineId: 'WALK', lineColor: '#94A3B8', lineName: '行人隧道步行', weight: 5 });
-            graph['HOK'].push({ node: 'CEN', lineId: 'WALK', lineColor: '#94A3B8', lineName: '行人隧道步行', weight: 5 });
-        }
-        if (graph['TST'] && graph['ETS']) {
-            graph['TST'].push({ node: 'ETS', lineId: 'WALK', lineColor: '#94A3B8', lineName: '行人隧道步行', weight: 5 });
-            graph['ETS'].push({ node: 'TST', lineId: 'WALK', lineColor: '#94A3B8', lineName: '行人隧道步行', weight: 5 });
-        }
-    }
 
-    async function init() {
-        if (window.INLINE_FARES_DATA) {
-            faresDB = window.INLINE_FARES_DATA;
-        }
-        buildNetworkGraph();
-
-        if (typeof L !== 'undefined') {
-            map = L.map('aura-map-canvas', { zoomControl: false, minZoom: 11, maxZoom: 17.5, zoomSnap: 0 }).setView([22.34, 114.17], 12);
-            syncMapTiles(AuraTheme.isLight);
-            linesLayer = L.layerGroup().addTo(map);
-            highlightLayer = L.layerGroup().addTo(map);
-            stationsLayer = L.layerGroup().addTo(map);
-            renderMapNodes();
-
-            map.on('zoom', () => {
-                const z = map.getZoom();
-                const sc = Math.max(0.8, Math.min(2.2, 1 + (z - 12) * 0.15));
-                const mc = document.getElementById('aura-map-canvas');
-                if (mc) {
-                    mc.style.setProperty('--label-scale', sc);
-                    mc.classList.toggle('hide-minor-labels', z < 13.3 && !showAllLabels);
+        // In-station transfers between different baseLines
+        Object.entries(stationBaseLines).forEach(([sta, lineSet]) => {
+            const arr = Array.from(lineSet);
+            if (arr.length < 2) return;
+            const meta = MTR_TRANSFERS[sta] || { cross: false, walk: 2.5 };
+            for (let i = 0; i < arr.length; i++) {
+                for (let j = 0; j < arr.length; j++) {
+                    if (i === j) continue;
+                    addEdge(`${sta}|${arr[i]}`, `${sta}|${arr[j]}`, meta.walk + 1.5, 'transfer', arr[j], meta.walk, meta.cross);
                 }
-            });
-        }
-        updateCapsuleUI();
-    }
-
-    function syncMapTiles(isLight) {
-        if (!map || typeof L === 'undefined') return;
-        if (tileLayer) map.removeLayer(tileLayer);
-        const u = isLight
-            ? 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png'
-            : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
-        tileLayer = L.tileLayer(u).addTo(map);
-    }
-
-    function renderMapNodes() {
-        if (!map) return;
-        MtrData.lines.forEach(l => {
-            const pts = l.path.map(id => MtrData.stations[id] ? [MtrData.stations[id].lat, MtrData.stations[id].lon] : null).filter(Boolean);
-            L.polyline(pts, { color: l.color, weight: 4.5, opacity: 0.8, lineJoin: 'round' }).addTo(linesLayer);
+            }
         });
-        Object.keys(MtrData.stations).forEach(staId => {
-            const s = MtrData.stations[staId];
-            const maj = MAJOR_STATIONS.includes(staId);
-            const html = `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
-                <div class="mtr-station-marker ${maj?'interchange-node':''}" id="marker-${staId}" style="width:10px;height:10px;"></div>
-                <div class="station-label ${maj?'major-station-label':'minor-station-label'}" id="label-${staId}">${s.name}</div>
-            </div>`;
-            const icon = L.divIcon({ className: 'custom-div-icon', html, iconSize: [28, 28], iconAnchor: [14, 14] });
-            const m = L.marker([s.lat, s.lon], { icon }).addTo(stationsLayer);
-            m.on('click', () => onStationPicked(staId));
+
+        // Out-of-station pedestrian transfer links (CEN<->HOK, TST<->ETS)
+        MTR_WALK_LINKS.forEach(([a, b, walkMin]) => {
+            const la = Array.from(stationBaseLines[a] || []);
+            const lb = Array.from(stationBaseLines[b] || []);
+            la.forEach(x => lb.forEach(y => {
+                addEdge(`${a}|${x}`, `${b}|${y}`, walkMin + 2.0, 'walk', y, walkMin, false);
+                addEdge(`${b}|${y}`, `${a}|${x}`, walkMin + 2.0, 'walk', x, walkMin, false);
+            }));
         });
+
+        return { adj, stationBaseLines };
     }
 
-    function focusSlot(slot) {
-        activeSlot = slot;
-        document.getElementById('slot-origin').classList.toggle('active-slot', slot === 'origin');
-        document.getElementById('slot-dest').classList.toggle('active-slot', slot === 'dest');
-    }
+    const GRAPH = buildStateGraph();
 
-    function onStationPicked(staId) {
-        if (navigator.vibrate) navigator.vibrate(25);
-        if (activeSlot === 'origin') {
-            if (staId === destSta) { swapStations(); return; }
-            originSta = staId;
-            focusSlot('dest');
-        } else {
-            if (staId === originSta) { swapStations(); return; }
-            destSta = staId;
+    function runStateDijkstra(fromSta, toSta, mode) {
+        if (fromSta === toSta) return null;
+        const startLines = Array.from(GRAPH.stationBaseLines[fromSta] || []);
+        const dist = {};
+        const prev = {};
+        const visited = new Set();
+        const pq = [];
+
+        startLines.forEach(l => {
+            const k = `${fromSta}|${l}`;
+            dist[k] = 0;
+            pq.push({ node: k, cost: 0, realTime: 0, transfers: 0 });
+        });
+
+        let bestGoal = null;
+        let bestGoalCost = Infinity;
+
+        while (pq.length) {
+            pq.sort((a, b) => a.cost - b.cost);
+            const cur = pq.shift();
+            if (visited.has(cur.node)) continue;
+            visited.add(cur.node);
+
+            const [curSta] = cur.node.split('|');
+            if (curSta === toSta) {
+                if (cur.cost < bestGoalCost) {
+                    bestGoalCost = cur.cost;
+                    bestGoal = cur.node;
+                }
+                continue;
+            }
+
+            const edges = GRAPH.adj[cur.node] || [];
+            for (const e of edges) {
+                if (visited.has(e.to)) continue;
+                let weight = e.time;
+                if (e.type === 'transfer' || e.type === 'walk') {
+                    if (mode === 'fewest') weight += 18;
+                    else if (mode === 'cross') weight += e.isCross ? 1.5 : 14;
+                    else weight += 1.0;
+                }
+                if (e.lineId === 'AEL' && toSta !== 'AIR' && toSta !== 'AWE' && fromSta !== 'AIR' && fromSta !== 'AWE') {
+                    weight += 25; // avoid Airport Express surcharge for normal trips
+                }
+                const nextCost = cur.cost + weight;
+                if (nextCost < (dist[e.to] ?? Infinity)) {
+                    dist[e.to] = nextCost;
+                    prev[e.to] = { from: cur.node, edge: e };
+                    pq.push({ node: e.to, cost: nextCost });
+                }
+            }
         }
-        updateCapsuleUI();
-        computeAllStrategies();
+
+        if (!bestGoal) return null;
+
+        // Reconstruct segments
+        const steps = [];
+        let cur = bestGoal;
+        while (prev[cur]) {
+            steps.unshift({ from: prev[cur].from, to: cur, edge: prev[cur].edge });
+            cur = prev[cur].from;
+        }
+
+        const segments = [];
+        let totalMin = 0;
+        let totalStops = 0;
+        let transferHubs = [];
+        let usesCrossHarbour = false;
+        let usesBorder = false;
+        let usesAEL = false;
+
+        const harbourPairs = new Set(['ADM-TST','TST-ADM','ADM-EXC','EXC-ADM','EXC-HUH','HUH-EXC','QUB-YAT','YAT-QUB','HOK-KOW','KOW-HOK']);
+
+        steps.forEach(s => {
+            const [fSta, fLine] = s.from.split('|');
+            const [tSta, tLine] = s.to.split('|');
+            totalMin += s.edge.time;
+            if (s.edge.type === 'ride') {
+                totalStops += 1;
+                if (harbourPairs.has(`${fSta}-${tSta}`)) usesCrossHarbour = true;
+                if (tSta === 'LOW' || tSta === 'LMC' || fSta === 'LOW' || fSta === 'LMC') usesBorder = true;
+                if (tLine === 'AEL') usesAEL = true;
+                const last = segments[segments.length - 1];
+                if (last && last.type === 'ride' && last.lineId === tLine) {
+                    last.stops.push(tSta);
+                    last.to = tSta;
+                    last.min += s.edge.time;
+                } else {
+                    segments.push({ type: 'ride', lineId: tLine, from: fSta, to: tSta, stops: [fSta, tSta], min: s.edge.time });
+                }
+            } else {
+                transferHubs.push(fSta);
+                segments.push({
+                    type: s.edge.type,
+                    at: fSta,
+                    toSta: tSta,
+                    fromLine: fLine,
+                    toLine: tLine,
+                    walkMin: s.edge.walkMin,
+                    isCross: s.edge.isCross
+                });
+            }
+        });
+
+        totalMin = Math.max(3, Math.round(totalMin));
+        const fare = estimateMtrFare(fromSta, toSta, totalStops, usesCrossHarbour, usesBorder, usesAEL);
+        const viaLabel = transferHubs.length
+            ? '經 ' + transferHubs.map(c => MTR_STATIONS[c].name).join('・')
+            : '直達免轉乘';
+
+        return {
+            mode,
+            totalMin,
+            totalStops,
+            transfers: transferHubs.length,
+            transferHubs,
+            viaLabel,
+            segments,
+            fare
+        };
     }
 
     function updateCapsuleUI() {
-        const oEl = document.getElementById('slot-origin-val');
-        const dEl = document.getElementById('slot-dest-val');
-        if (oEl) oEl.innerText = originSta ? MtrData.stations[originSta].name : '選擇起點';
-        if (dEl) dEl.innerText = destSta ? MtrData.stations[destSta].name : '選擇終點';
+        const oEl = document.getElementById('cockpit-origin-txt');
+        const dEl = document.getElementById('cockpit-dest-txt');
+        if (oEl && MTR_STATIONS[originSta]) oEl.innerText = `${MTR_STATIONS[originSta].name} (${originSta})`;
+        if (dEl && MTR_STATIONS[destSta]) dEl.innerText = `${MTR_STATIONS[destSta].name} (${destSta})`;
+    }
+
+    function computeAllStrategies() {
+        cachedRoutes = {
+            fastest: runStateDijkstra(originSta, destSta, 'fastest'),
+            fewest: runStateDijkstra(originSta, destSta, 'fewest'),
+            cross: runStateDijkstra(originSta, destSta, 'cross')
+        };
+        ['fastest', 'fewest', 'cross'].forEach(k => {
+            const r = cachedRoutes[k];
+            const mEl = document.getElementById(`strat-meta-${k}`);
+            const vEl = document.getElementById(`strat-via-${k}`);
+            if (r) {
+                if (mEl) mEl.innerText = `${r.totalMin} 分 • ${r.transfers} 轉乘`;
+                if (vEl) vEl.innerText = r.viaLabel;
+            } else {
+                if (mEl) mEl.innerText = '相同車站';
+                if (vEl) vEl.innerText = '請選不同終點';
+            }
+        });
+        renderActiveRoute();
+    }
+
+    function selectStrategy(mode) {
+        activeStrategy = mode;
+        ['fastest', 'fewest', 'cross'].forEach(k => {
+            const b = document.getElementById(`strat-btn-${k}`);
+            if (b) b.classList.toggle('active', k === mode);
+        });
+        renderActiveRoute();
+    }
+
+    function renderActiveRoute() {
+        const host = document.getElementById('cockpit-result-host');
+        if (!host) return;
+        const res = cachedRoutes[activeStrategy];
+        if (!res) {
+            host.innerHTML = `<div class="route-result-card" style="text-align:center;color:var(--text-sub);font-size:0.85rem;">請選擇不同的起點與終點車站。</div>`;
+            drawRouteOnMap(null);
+            return;
+        }
+
+        const etaDate = new Date(Date.now() + res.totalMin * 60000);
+        const etaStr = `${String(etaDate.getHours()).padStart(2,'0')}:${String(etaDate.getMinutes()).padStart(2,'0')}`;
+        const oct = res.fare.oct;
+
+        // First transfer hub boarding car recommendation
+        const firstRide = res.segments.find(s => s.type === 'ride');
+        const firstHub = res.transferHubs[0] || destSta;
+        const tMeta = MTR_TRANSFERS[firstHub] || { cars: [4, 5], tip: '建議中間車廂較近扶手電梯' };
+        const totalCars = (firstRide && MTR_LINES[firstRide.lineId] && MTR_LINES[firstRide.lineId].cars) || 8;
+        const carsHtml = Array.from({ length: totalCars }, (_, i) => {
+            const c = i + 1;
+            const isBest = tMeta.cars.includes(c);
+            return `<div class="${isBest?'best-car-shimmer':''}" style="flex:1;height:22px;border-radius:5px;background:${isBest?'linear-gradient(135deg,#10B981,#059669)':'var(--chip-inactive-bg)'};color:${isBest?'#fff':'var(--text-sub)'};font-size:0.65rem;font-weight:800;display:flex;align-items:center;justify-content:center;">${isBest?'★':''}${c}卡</div>`;
+        }).join('');
+
+        let tlHtml = '';
+        res.segments.forEach((seg, idx) => {
+            if (seg.type === 'ride') {
+                const ln = MTR_LINES[seg.lineId];
+                const midStops = seg.stops.slice(1, -1);
+                tlHtml += `<div class="anim-stagger" style="--i:${idx};display:flex;gap:10px;align-items:center;margin-bottom:6px;">
+                    <div style="width:4px;align-self:stretch;border-radius:4px;background:${ln.color};min-height:38px;"></div>
+                    <div style="flex:1;padding:6px 0;">
+                        <div style="font-size:0.92rem;font-weight:900;">${MTR_STATIONS[seg.from].name} ➔ ${MTR_STATIONS[seg.to].name}</div>
+                        <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;">
+                            <span style="font-size:0.66rem;font-weight:800;padding:2px 7px;border-radius:6px;background:${ln.color};color:#fff;">${ln.name}</span>
+                            <span style="font-size:0.72rem;color:var(--text-sub);">共 ${seg.stops.length - 1} 站 • 約 ${Math.round(seg.min)} 分鐘</span>
+                            ${midStops.length ? `<span style="font-size:0.7rem;color:var(--aura-cyan);font-weight:700;cursor:pointer;" onclick="document.getElementById('seg-stops-${idx}').classList.toggle('hidden')">▾ 展開途經 ${midStops.length} 站</span>` : ''}
+                        </div>
+                        ${midStops.length ? `<div id="seg-stops-${idx}" class="hidden drawer-anim" style="margin-top:6px;padding:7px 9px;border-radius:9px;background:var(--chip-inactive-bg);font-size:0.7rem;color:var(--text-sub);line-height:1.5;">${midStops.map(c => MTR_STATIONS[c].name).join(' → ')}</div>` : ''}
+                    </div>
+                </div>`;
+            } else {
+                const toLn = MTR_LINES[seg.toLine];
+                const meta = MTR_TRANSFERS[seg.at] || { tip: '按站內指示前往轉乘月台' };
+                tlHtml += `<div class="anim-stagger" style="--i:${idx};padding:8px 10px;border-radius:12px;background:rgba(56,189,248,0.09);border:1px solid rgba(56,189,248,0.25);margin:4px 0 8px 12px;">
+                    <div style="font-size:0.76rem;font-weight:800;">🔄 於 ${MTR_STATIONS[seg.at].name} 轉乘 ${toLn.name} ${seg.isCross ? '⚡同月台' : ''}（步行約 ${seg.walkMin} 分鐘）</div>
+                    <div style="font-size:0.68rem;color:var(--text-sub);margin-top:2px;">${meta.tip}</div>
+                </div>`;
+            }
+        });
+
+        const destExits = (MTR_STATIONS[destSta] && MTR_STATIONS[destSta].exits) || [];
+
+        host.innerHTML = `<div class="route-result-card">
+            <div class="hero-metrics-grid">
+                <div class="hero-metric-box">
+                    <div class="metric-lbl">⏱️ 總車程</div>
+                    <div class="metric-val eta-pop">${res.totalMin} 分鐘</div>
+                    <div class="metric-sub">預計 ${etaStr} 抵達</div>
+                </div>
+                <div class="hero-metric-box">
+                    <div class="metric-lbl">💳 成人八達通</div>
+                    <div class="metric-val eta-pop" style="color:#10B981;">$${oct.toFixed(1)}</div>
+                    <div class="metric-sub">樂悠咭 $${res.fare.joy.toFixed(1)}</div>
+                </div>
+                <div class="hero-metric-box">
+                    <div class="metric-lbl">🚇 行程</div>
+                    <div class="metric-val">${res.totalStops} 站</div>
+                    <div class="metric-sub">${res.transfers === 0 ? '直達免轉乘' : `轉乘 ${res.transfers} 次`}</div>
+                </div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <span style="font-size:0.72rem;font-weight:800;color:var(--aura-cyan);">${res.viaLabel}</span>
+                <button class="pids-icon-btn" onclick="document.getElementById('extra-fare-consist-box').classList.toggle('hidden')">🚆 車廂建議 & 詳細票價 ▾</button>
+            </div>
+
+            <div id="extra-fare-consist-box" class="hidden drawer-anim" style="margin-bottom:10px;padding:10px;border-radius:13px;background:rgba(0,0,0,0.2);border:1px solid var(--glass-border);">
+                <div style="display:flex;justify-content:space-between;font-size:0.7rem;margin-bottom:6px;">
+                    <span style="font-weight:800;">對準 ${MTR_STATIONS[firstHub].name} 轉乘梯/出口</span>
+                    <span style="color:#10B981;font-weight:800;">推薦第 ${tMeta.cars.join(', ')} 卡</span>
+                </div>
+                <div style="display:flex;gap:4px;margin-bottom:8px;">${carsHtml}</div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center;font-size:0.7rem;">
+                    <div style="padding:5px;border-radius:8px;background:var(--chip-inactive-bg);">單程票<br><b>$${res.fare.single.toFixed(1)}</b></div>
+                    <div style="padding:5px;border-radius:8px;background:var(--chip-inactive-bg);">小童/學生<br><b>$${res.fare.child.toFixed(1)}</b></div>
+                    <div style="padding:5px;border-radius:8px;background:var(--chip-inactive-bg);">樂悠咭<br><b>$${res.fare.joy.toFixed(1)}</b></div>
+                </div>
+            </div>
+
+            <div>${tlHtml}</div>
+
+            ${destExits.length ? `<div style="margin-top:8px;padding:8px 10px;border-radius:11px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);font-size:0.72rem;font-weight:700;">🏁 抵達 ${MTR_STATIONS[destSta].name} • 焦點出口：${destExits[0]}</div>` : ''}
+        </div>`;
+
+        drawRouteOnMap(res);
+    }
+
+    function initMap() {
+        if (map || typeof L === 'undefined') return;
+        map = L.map('aura-map', { zoomControl: false, attributionControl: false }).setView([22.33, 114.17], 11);
+        updateTileLayer();
+        routeLayerGroup = L.layerGroup().addTo(map);
+        computeAllStrategies();
+    }
+
+    function updateTileLayer() {
+        if (!map || typeof L === 'undefined') return;
+        if (tileLayer) map.removeLayer(tileLayer);
+        // Keyless ArcGIS MapServer tiles work smoothly in both Canvas iframe and Android WebView
+        const url = AuraTheme.isLight
+            ? 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+            : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
+        tileLayer = L.tileLayer(url, { maxZoom: 16 }).addTo(map);
+    }
+
+    function drawRouteOnMap(res) {
+        if (!map || !routeLayerGroup || typeof L === 'undefined') return;
+        routeLayerGroup.clearLayers();
+        if (!res) return;
+
+        const allCoords = [];
+        res.segments.forEach(seg => {
+            if (seg.type === 'ride') {
+                const ln = MTR_LINES[seg.lineId];
+                const pts = seg.stops.map(c => [MTR_STATIONS[c].lat, MTR_STATIONS[c].lng]);
+                pts.forEach(p => allCoords.push(p));
+                L.polyline(pts, { color: ln.color, weight: 5, opacity: 0.92 }).addTo(routeLayerGroup);
+                seg.stops.forEach(c => {
+                    const s = MTR_STATIONS[c];
+                    const cls = c === originSta ? 'mtr-station-marker selected-origin'
+                              : c === destSta ? 'mtr-station-marker selected-dest'
+                              : 'mtr-station-marker';
+                    const icon = L.divIcon({
+                        className: '',
+                        html: `<div class="${cls}" style="background:${ln.color};"></div>`,
+                        iconSize: c === originSta || c === destSta ? [16, 16] : [10, 10],
+                        iconAnchor: c === originSta || c === destSta ? [8, 8] : [5, 5]
+                    });
+                    L.marker([s.lat, s.lng], { icon }).bindTooltip(s.name, { direction: 'top' }).addTo(routeLayerGroup);
+                });
+            }
+        });
+        if (allCoords.length >= 2) {
+            map.fitBounds(allCoords, { padding: [26, 26] });
+        }
     }
 
     function swapStations() {
+        const btn = document.querySelector('.capsule-swap-circle');
+        if (btn) { btn.classList.remove('swap-spinning'); void btn.offsetWidth; btn.classList.add('swap-spinning'); }
         const t = originSta; originSta = destSta; destSta = t;
         updateCapsuleUI();
         computeAllStrategies();
     }
 
-    function setSheetSnap(mode) {
-        sheetSnap = mode;
-        const sh = document.getElementById('cockpit-route-sheet');
-        if (!sh) return;
-        sh.classList.remove('mini', 'tall');
-        if (mode === 'mini') sh.classList.add('mini');
-        if (mode === 'tall') sh.classList.add('tall');
+    function setStation(role, code) {
+        if (role === 'origin') originSta = code;
+        else destSta = code;
+        updateCapsuleUI();
+        computeAllStrategies();
     }
 
-    function cycleSheetSnap() {
-        const order = ['normal', 'tall', 'mini'];
-        const next = order[(order.indexOf(sheetSnap) + 1) % order.length];
-        setSheetSnap(next);
-    }
-
-    function clearRoute() {
-        const sh = document.getElementById('cockpit-route-sheet');
-        if (sh) sh.classList.remove('open', 'mini', 'tall');
-        if (highlightLayer) highlightLayer.clearLayers();
-        if (linesLayer) linesLayer.getLayers().forEach(l => l.setStyle({ opacity: 0.8 }));
-        Object.keys(MtrData.stations).forEach(id => {
-            const m = document.getElementById(`marker-${id}`);
-            const l = document.getElementById(`label-${id}`);
-            const maj = MAJOR_STATIONS.includes(id);
-            if (m) m.className = `mtr-station-marker ${maj?'interchange-node':''}`;
-            if (l) l.className = `station-label ${maj?'major-station-label':'minor-station-label'}`;
-        });
-        if (map) map.flyTo([22.34, 114.17], 12, { duration: 0.5 });
-    }
-
-    // State-Space Dijkstra: keys by `${station}|${baseLine}` so interchange hubs never overwrite each other!
-    function runStateDijkstra(start, end, mode, bannedHubs = new Set()) {
-        const dist = {}, prevState = {}, prevEdge = {}, pq = [];
-        const startKey = `${start}|START`;
-        dist[startKey] = 0;
-        pq.push({ key: startKey, node: start, lineId: null, d: 0 });
-
-        let bestEndKey = null;
-
-        while (pq.length > 0) {
-            pq.sort((a, b) => a.d - b.d);
-            const { key, node, lineId: curL, d } = pq.shift();
-            if (node === end) {
-                bestEndKey = key;
-                break;
-            }
-            if (d > (dist[key] ?? 1e9)) continue;
-
-            (graph[node] || []).forEach(nb => {
-                if (nb.node === 'RAC' && start !== 'RAC' && end !== 'RAC') return;
-                let c = nb.weight;
-                const bCur = curL ? curL.split('_')[0] : null;
-                const bNext = nb.lineId.split('_')[0];
-                if (bCur !== null && bCur !== bNext && nb.lineId !== 'WALK') {
-                    const ti = getTransferInfo(node, curL, nb.lineId);
-                    if (mode === 'fewest') c += ti.avg + 55;
-                    else if (mode === 'comfort') c += ti.cross ? (ti.avg * 0.25) : (ti.avg + 9);
-                    else c += ti.avg;
-                    if (bannedHubs.has(node)) c += 45;
-                }
-                const nextKey = `${nb.node}|${bNext}`;
-                if (d + c < (dist[nextKey] ?? 1e9)) {
-                    dist[nextKey] = d + c;
-                    prevState[nextKey] = key;
-                    prevEdge[nextKey] = nb;
-                    pq.push({ key: nextKey, node: nb.node, lineId: nb.lineId, d: dist[nextKey] });
-                }
-            });
-        }
-
-        const path = [], edges = [];
-        let currKey = bestEndKey;
-        while (currKey) {
-            const node = currKey.split('|')[0];
-            path.unshift(node);
-            if (prevState[currKey]) edges.unshift(prevEdge[currKey]);
-            currKey = prevState[currKey];
-        }
-
-        let realMin = 1, transfers = 0, transferStations = [], firstTransferInfo = null;
-        for (let i = 0; i < edges.length; i++) {
-            realMin += edges[i].weight;
-            if (i < edges.length - 1) {
-                const l1 = edges[i].lineId.split('_')[0];
-                const l2 = edges[i + 1].lineId.split('_')[0];
-                if (l1 !== l2 && l2 !== 'WALK') {
-                    transfers++;
-                    transferStations.push(path[i + 1]);
-                    const ti = getTransferInfo(path[i + 1], edges[i].lineId, edges[i + 1].lineId);
-                    realMin += (l1 === 'WALK' ? 2 : ti.avg);
-                    if (!firstTransferInfo) firstTransferInfo = { staId: path[i + 1], ...ti };
-                }
-            }
-        }
-        const viaLabel = transferStations.length === 0
-            ? '直達免轉乘'
-            : '經' + transferStations.map(s => MtrData.stations[s].name).join('・');
-        return { path, edges, totalMin: Math.round(realMin), transfers, transferStations, viaLabel, firstTransferInfo };
-    }
-
-    function getRawFare(fromSta, toSta) {
-        if (!faresDB) return { oct: 12.5, sng: 14.0 };
-        const af = getApiId(fromSta), at = getApiId(toSta);
-        return faresDB[`${fromSta}-${toSta}`] || faresDB[`${toSta}-${fromSta}`] || faresDB[`${af}-${at}`] || faresDB[`${at}-${af}`] || { oct: 12.5, sng: 14.0 };
-    }
-
-    function computeAllStrategies() {
-        if (!originSta || !destSta || originSta === destSta) return;
-        const rFastest = runStateDijkstra(originSta, destSta, 'fastest');
-        const rFewest = runStateDijkstra(originSta, destSta, 'fewest');
-        let rComfort = runStateDijkstra(originSta, destSta, 'comfort');
-
-        const sig = r => r.path.join('-');
-        // Ensure the 3 tabs offer distinct transfer hubs whenever possible!
-        if (sig(rFastest) === sig(rFewest) && rFastest.transferStations.length > 0) {
-            const altFast = runStateDijkstra(originSta, destSta, 'fastest', new Set(rFewest.transferStations));
-            if (altFast.path.length > 1 && altFast.totalMin <= rFewest.totalMin + 12) {
-                cachedRoutes['fewest'] = rFewest;
-                cachedRoutes['fastest'] = altFast;
-            } else {
-                cachedRoutes['fastest'] = rFastest;
-                cachedRoutes['fewest'] = rFewest;
-            }
-        } else {
-            cachedRoutes['fastest'] = rFastest;
-            cachedRoutes['fewest'] = rFewest;
-        }
-
-        const usedHubs = new Set([
-            ...(cachedRoutes['fastest'].transferStations || []),
-            ...(cachedRoutes['fewest'].transferStations || [])
-        ]);
-        if (sig(rComfort) === sig(cachedRoutes['fastest']) || sig(rComfort) === sig(cachedRoutes['fewest'])) {
-            if (usedHubs.size > 0) {
-                const alt3 = runStateDijkstra(originSta, destSta, 'fastest', usedHubs);
-                if (alt3.path.length > 1 && alt3.totalMin <= cachedRoutes['fastest'].totalMin + 16) {
-                    rComfort = alt3;
-                }
-            }
-        }
-        cachedRoutes['comfort'] = rComfort;
-
-        const icons = { fastest: '⚡', fewest: '🔄', comfort: '🛋️' };
-        ['fastest', 'fewest', 'comfort'].forEach(mode => {
-            const r = cachedRoutes[mode];
-            const tEl = document.getElementById(`strat-title-${mode}`);
-            const sEl = document.getElementById(`strat-sub-${mode}`);
-            if (tEl) tEl.innerText = `${icons[mode]} ${r.viaLabel}`;
-            if (sEl) sEl.innerText = `${r.totalMin}分 • ${r.transfers}轉乘`;
-        });
-
-        selectStrategy(currentStrategy);
-    }
-
-    function selectStrategy(mode) {
-        currentStrategy = mode;
-        document.querySelectorAll('.strategy-card').forEach(c => c.classList.toggle('active', c.dataset.mode === mode));
-        const res = cachedRoutes[mode] || runStateDijkstra(originSta, destSta, mode);
-        renderRouteOnMapAndSheet(res);
-    }
-
-    function toggleSegStations(idx) {
-        const el = document.getElementById(`seg-stops-${idx}`);
-        if (el) el.classList.toggle('hidden');
-    }
-
-    function toggleExtraDrawer() {
-        const el = document.getElementById('extra-fare-consist-box');
-        if (el) el.classList.toggle('hidden');
-    }
-
-    async function renderRouteOnMapAndSheet(res) {
-        if (!res || res.path.length <= 1) return;
-
-        // 1. Highlight on Map
-        if (linesLayer) linesLayer.getLayers().forEach(l => l.setStyle({ opacity: 0.15 }));
-        Object.keys(MtrData.stations).forEach(id => {
-            const m = document.getElementById(`marker-${id}`);
-            const l = document.getElementById(`label-${id}`);
-            const maj = MAJOR_STATIONS.includes(id);
-            if (m) m.className = `mtr-station-marker ${maj?'interchange-node':''} ${!res.path.includes(id)?'dimmed':''}`;
-            if (l) l.className = `station-label ${maj?'major-station-label':'minor-station-label'} ${!res.path.includes(id)?'dimmed':''}`;
-        });
-        if (document.getElementById(`marker-${originSta}`)) document.getElementById(`marker-${originSta}`).classList.add('selected-origin');
-        if (document.getElementById(`marker-${destSta}`)) document.getElementById(`marker-${destSta}`).classList.add('selected-dest');
-
-        if (highlightLayer) {
-            highlightLayer.clearLayers();
-            let curL = null, coords = [];
-            const drawGlow = (pts, col) => {
-                L.polyline(pts, { color: col, weight: 10, opacity: 0.3, lineJoin: 'round' }).addTo(highlightLayer);
-                L.polyline(pts, { color: col, weight: 5, opacity: 1, lineJoin: 'round' }).addTo(highlightLayer);
-                L.polyline(pts, { color: '#fff', weight: 2, opacity: 0.85, lineJoin: 'round', className: 'route-flow-dash' }).addTo(highlightLayer);
-            };
-            res.edges.forEach((e, i) => {
-                const pU = [MtrData.stations[res.path[i]].lat, MtrData.stations[res.path[i]].lon];
-                const pV = [MtrData.stations[res.path[i + 1]].lat, MtrData.stations[res.path[i + 1]].lon];
-                if (curL !== e.lineId) {
-                    if (coords.length > 0) drawGlow(coords, res.edges[i - 1].lineColor);
-                    coords = [pU, pV]; curL = e.lineId;
-                } else coords.push(pV);
-            });
-            if (coords.length > 0) drawGlow(coords, res.edges[res.edges.length - 1].lineColor);
-
-            if (map) {
-                map.flyToBounds(res.path.map(id => [MtrData.stations[id].lat, MtrData.stations[id].lon]), {
-                    paddingTopLeft: [24, 135],
-                    paddingBottomRight: [24, window.innerHeight * 0.44],
-                    maxZoom: 14.5,
-                    duration: 0.6
-                });
-            }
-        }
-
-        // 2. First-Glance 3-Metric Hero Strip
-        const rawF = getRawFare(originSta, destSta);
-        const oct = Number(rawF.oct);
-        const sng = Number(rawF.sng || oct);
-        const con = Math.max(1.5, Math.round((oct / 2) * 10) / 10);
-        const isBound = ['LOW','LMC','AIR','AWE'].includes(originSta) || ['LOW','LMC','AIR','AWE'].includes(destSta);
-        const joy = isBound ? con : Math.min(oct, 2.0);
-        const arrClock = formatHHMM(new Date(Date.now() + res.totalMin * 60000));
-
-        const bmBtn = document.getElementById('btn-bookmark-route');
-        if (bmBtn) bmBtn.setAttribute('onclick', `AuraDashboard.addCommuteBookmark('${originSta}','${destSta}')`);
-
-        document.getElementById('cockpit-hero-metrics').innerHTML = `
-            <div class="metric-box">
-                <div class="metric-label">⏱️ 預計車程 (${arrClock} 到)</div>
-                <div class="metric-val">${res.totalMin} 分鐘 <span style="font-size:0.72rem;color:var(--aura-cyan);">${res.transfers}轉乘</span></div>
-            </div>
-            <div class="metric-box">
-                <div class="metric-label">💳 成人八達通</div>
-                <div class="metric-val" style="color:#10B981;">$${oct.toFixed(1)}</div>
-            </div>
-            <div class="metric-box">
-                <div class="metric-label">🟢 起點下班車</div>
-                <div class="metric-val" id="cockpit-live-origin-eta" style="color:#34D399;">同步中</div>
-            </div>
-        `;
-
-        // 3. Collapsible Extra Drawer (Other Fares + Recommended Train Car)
-        const firstRailEdge = res.edges.find(e => e.lineId !== 'WALK') || res.edges[0];
-        const firstLineBase = firstRailEdge.lineId.split('_')[0];
-        const totalCars = firstLineBase === 'EAL' ? 9 : (firstLineBase === 'SIL' ? 3 : (firstLineBase === 'DRL' ? 4 : 8));
-        let bestCars = res.firstTransferInfo ? res.firstTransferInfo.cars : [4, 5];
-        bestCars = bestCars.filter(c => c <= totalCars);
-        if (bestCars.length === 0) bestCars = [Math.ceil(totalCars / 2)];
-
-        const carsHtml = Array.from({ length: totalCars }, (_, i) => i + 1).map(c => {
-            const isBest = bestCars.includes(c);
-            return `<div style="flex:1;height:22px;border-radius:5px;background:${isBest?'#10B981':'var(--chip-inactive-bg)'};color:${isBest?'#fff':'var(--text-sub)'};font-size:0.65rem;font-weight:800;display:flex;align-items:center;justify-content:center;">${isBest?'★':''}${c}卡</div>`;
-        }).join('');
-
-        document.getElementById('cockpit-extra-drawer').innerHTML = `
-            <div onclick="AuraCockpit.toggleExtraDrawer()" style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;margin-top:6px;background:var(--chip-inactive-bg);border-radius:10px;font-size:0.74rem;font-weight:800;color:var(--text-sub);cursor:pointer;">
-                <span>🚆 建議登車：第 <b style="color:#34D399;">${bestCars.join(', ')}</b> 卡 • 單程 $${sng.toFixed(1)} / 小童 $${con.toFixed(1)} / 樂悠 $${joy.toFixed(1)}</span>
-                <span style="color:var(--aura-cyan);">車廂圖 ▾</span>
-            </div>
-            <div id="extra-fare-consist-box" class="hidden" style="margin-top:6px;padding:8px 10px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:12px;">
-                <div style="font-size:0.68rem;color:var(--aura-cyan);font-weight:800;margin-bottom:5px;">${firstRailEdge.lineName} (${totalCars}卡列車) • ★綠卡對準轉乘扶手梯</div>
-                <div style="display:flex;gap:4px;">${carsHtml}</div>
-            </div>
-        `;
-
-        // 4. Clean Step-by-Step Timeline
-        const segs = [];
-        let cl = res.edges[0].lineId, cc = res.edges[0].lineColor, cn = res.edges[0].lineName, stas = [res.path[0]];
-        res.edges.forEach((e, i) => {
-            if (e.lineId === cl) stas.push(res.path[i + 1]);
-            else {
-                segs.push({ lineId: cl, color: cc, name: cn, stas });
-                cl = e.lineId; cc = e.lineColor; cn = e.lineName;
-                stas = [res.path[i], res.path[i + 1]];
-            }
-        });
-        segs.push({ lineId: cl, color: cc, name: cn, stas });
-
-        let tlHtml = '';
-        segs.forEach((seg, idx) => {
-            const s0 = seg.stas[0], sEnd = seg.stas[seg.stas.length - 1];
-            const midStas = seg.stas.slice(1, -1);
-            if (idx > 0 && seg.lineId !== 'WALK') {
-                const prevL = segs[idx - 1].lineId === 'WALK' && idx >= 2 ? segs[idx - 2].lineId : segs[idx - 1].lineId;
-                const ti = getTransferInfo(s0, prevL, seg.lineId);
-                tlHtml += `<div style="margin:6px 0 8px 14px;padding:7px 11px;border-radius:10px;background:rgba(56,189,248,0.10);border-left:3px solid var(--aura-cyan);font-size:0.76rem;display:flex;justify-content:space-between;align-items:center;">
-                    <span><b>🔄 於 ${MtrData.stations[s0].name} 轉乘 ${seg.name}</b></span>
-                    <span style="color:var(--aura-cyan);font-weight:800;">${ti.cross?'⚡ 對面月台':'步程約 '+ti.walk+' 分'}</span>
-                </div>`;
-            }
-            const expandBtn = midStas.length > 0
-                ? `<span style="color:var(--aura-cyan);cursor:pointer;margin-left:8px;font-weight:800;" onclick="AuraCockpit.toggleSegStations(${idx})">途經 ${midStas.length} 站 ▾</span>`
-                : `<span style="color:var(--text-sub);margin-left:8px;">直達下站</span>`;
-            const midListHtml = midStas.length > 0
-                ? `<div id="seg-stops-${idx}" class="hidden" style="margin-top:5px;padding:6px 10px;background:var(--chip-inactive-bg);border-radius:8px;font-size:0.74rem;color:var(--text-sub);display:flex;flex-wrap:wrap;gap:6px;">
-                    ${midStas.map(id => `<span>• ${MtrData.stations[id].name}</span>`).join('')}
-                   </div>`
-                : '';
-
-            tlHtml += `<div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;">
-                <div style="width:5px;height:36px;border-radius:3px;background:${seg.color};flex-shrink:0;"></div>
-                <div style="flex:1;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <span style="font-weight:900;font-size:0.96rem;">${MtrData.stations[s0].name} ➔ ${MtrData.stations[sEnd].name}</span>
-                        <span style="font-size:0.73rem;"><span style="background:${seg.color};color:#fff;padding:2px 6px;border-radius:5px;font-weight:800;">${seg.name}</span>${expandBtn}</span>
-                    </div>
-                    ${midListHtml}
-                </div>
-            </div>`;
-        });
-
-        document.getElementById('cockpit-timeline-list').innerHTML = tlHtml;
-        setSheetSnap('normal');
-        document.getElementById('cockpit-route-sheet').classList.add('open');
-
-        // 5. Live Origin Countdown
-        if (firstRailEdge && firstRailEdge.lineId !== 'WALK') {
-            const etaRes = await fetchLiveMtrEta(firstRailEdge.lineId, originSta);
-            const sched = etaRes ? etaRes.schedule : null;
-            const now = (etaRes && etaRes.sysTime) ? new Date(etaRes.sysTime.replace(/-/g, '/')) : new Date();
-            const allT = [...((sched && sched.UP) || []), ...((sched && sched.DOWN) || [])]
-                .map(t => ({ ...t, dateObj: new Date(t.time.replace(/-/g, '/')) }))
-                .sort((a, b) => a.dateObj - b.dateObj);
-            const liveSub = document.getElementById('cockpit-live-origin-eta');
-            if (liveSub && allT.length > 0) {
-                const waitM = calcEtaMin(allT[0], now);
-                liveSub.innerHTML = waitM === 0 ? '即將到站' : `${waitM} min`;
-            }
-        }
-    }
-
-    function setExternal(staId, role) {
-        AuraNav.switchTab(1);
-        setTimeout(() => {
-            if (role === 'origin') originSta = staId;
-            else destSta = staId;
-            updateCapsuleUI();
-            computeAllStrategies();
-        }, 140);
-    }
-
-    function launchRoute(from, to) {
+    function quickPlan(from, to) {
         originSta = from; destSta = to;
+        updateCapsuleUI();
+        computeAllStrategies();
         AuraNav.switchTab(1);
-        setTimeout(() => {
-            updateCapsuleUI();
-            computeAllStrategies();
-        }, 140);
+    }
+
+    function setOriginAndGo(code) {
+        originSta = code;
+        if (destSta === code) destSta = (code === 'CEN' ? 'KOB' : 'CEN');
+        updateCapsuleUI();
+        computeAllStrategies();
+        AuraNav.switchTab(1);
+    }
+
+    function setDestAndGo(code) {
+        destSta = code;
+        if (originSta === code) originSta = (code === 'KOB' ? 'CEN' : 'KOB');
+        updateCapsuleUI();
+        computeAllStrategies();
+        AuraNav.switchTab(1);
+    }
+
+    function toggleMapSize() {
+        mapExpanded = !mapExpanded;
+        const wrap = document.getElementById('aura-map-wrap');
+        const btn = document.getElementById('map-expand-btn');
+        if (wrap) wrap.classList.toggle('expanded', mapExpanded);
+        if (btn) btn.innerText = mapExpanded ? '⤡ 收合地圖' : '⤢ 放大地圖';
+        setTimeout(() => invalidateMap(), 360);
+    }
+
+    function invalidateMap() {
+        if (!map) initMap();
+        if (map) {
+            map.invalidateSize();
+            if (cachedRoutes[activeStrategy]) drawRouteOnMap(cachedRoutes[activeStrategy]);
+        }
+    }
+
+    function fitRouteBounds() {
+        if (cachedRoutes[activeStrategy]) drawRouteOnMap(cachedRoutes[activeStrategy]);
     }
 
     return {
-        init, syncMapTiles, invalidateMap: () => map && map.invalidateSize(),
-        zoomIn: () => map && map.zoomIn(0.8), zoomOut: () => map && map.zoomOut(0.8),
-        resetMap: () => map && map.flyTo([22.34, 114.17], 12, { duration: 0.5 }),
-        toggleLabels: () => {
-            showAllLabels = !showAllLabels;
-            const mc = document.getElementById('aura-map-canvas');
-            if (mc) mc.classList.toggle('hide-minor-labels', !showAllLabels);
-            AuraToast.show(showAllLabels ? '🏷️ 已顯示全部站名' : '🏷️ 已切換為重點站名');
-        },
-        focusSlot, swapStations, selectStrategy, onStationPicked, getRawFare,
-        setExternal, launchRoute, setSheetSnap, cycleSheetSnap, clearRoute, toggleSegStations, toggleExtraDrawer
+        init() { updateCapsuleUI(); initMap(); },
+        swapStations,
+        setStation,
+        selectStrategy,
+        quickPlan,
+        setOriginAndGo,
+        setDestAndGo,
+        toggleMapSize,
+        invalidateMap,
+        fitRouteBounds,
+        updateTileLayer,
+        runStateDijkstra
     };
 })();
 
-// 5. Station Picker Modal
+/* =========================================================
+   STATION PICKER MODAL
+   ========================================================= */
 const AuraPicker = {
-    mode: 'origin',
-    lineFilter: 'ALL',
-    open(mode) {
-        this.mode = mode;
-        this.lineFilter = 'ALL';
-        const titles = { origin: '↗ 選擇起點車站', dest: '↘ 選擇終點車站', pin: '📺 新增看板車站' };
-        document.getElementById('matrix-picker-title').innerText = titles[mode] || '選擇車站';
-        document.getElementById('matrix-picker-input').value = '';
-        document.getElementById('matrix-picker-modal').classList.remove('hidden');
-        this.renderLines();
-        this.renderStations('');
+    role: 'origin',
+    open(role) {
+        this.role = role;
+        const t = document.getElementById('picker-modal-title');
+        const inp = document.getElementById('picker-search-input');
+        if (t) t.innerText = role === 'origin' ? '↗ 選擇起點車站' : '↘ 選擇終點車站';
+        if (inp) inp.value = '';
+        this.renderList();
+        document.getElementById('station-picker-modal').classList.remove('hidden');
     },
     close() {
-        document.getElementById('matrix-picker-modal').classList.add('hidden');
+        document.getElementById('station-picker-modal').classList.add('hidden');
     },
-    renderLines() {
-        const bar = document.getElementById('matrix-picker-lines');
-        const vis = MtrData.lines.filter(l => !l.isBranch);
-        let h = `<span onclick="AuraPicker.setLine('ALL')" style="padding:5px 11px;border-radius:12px;font-size:0.74rem;font-weight:800;cursor:pointer;white-space:nowrap;background:${this.lineFilter==='ALL'?'var(--aura-blue)':'var(--chip-inactive-bg)'};color:${this.lineFilter==='ALL'?'#fff':'var(--text-main)'};">全部</span>`;
-        h += vis.map(l => `<span onclick="AuraPicker.setLine('${l.id}')" style="padding:5px 11px;border-radius:12px;font-size:0.74rem;font-weight:800;cursor:pointer;white-space:nowrap;background:${l.color};opacity:${this.lineFilter===l.id?1:0.45};color:#fff;">${l.name}</span>`).join('');
-        bar.innerHTML = h;
-    },
-    setLine(lid) {
-        this.lineFilter = lid;
-        this.renderLines();
-        this.renderStations(document.getElementById('matrix-picker-input').value);
-    },
-    renderStations(q) {
-        const query = (q || '').trim().toLowerCase();
-        let codes = Object.keys(MtrData.stations);
-        if (this.lineFilter !== 'ALL') {
-            const l = MtrData.lines.find(x => x.id === this.lineFilter);
-            codes = l ? (l.searchPath || l.path) : codes;
-        }
-        if (query) {
-            codes = codes.filter(c => c.toLowerCase().includes(query) || MtrData.stations[c].name.includes(query) || (MtrData.stations[c].en || '').toLowerCase().includes(query));
-        }
-        document.getElementById('matrix-picker-grid').innerHTML = codes.map(c => {
-            const s = MtrData.stations[c];
-            const ls = getStationLines(c);
-            const col = ls[0] ? ls[0].color : '#3B82F6';
-            return `<div onclick="AuraPicker.pick('${c}')" style="background:var(--bento-bg);border:1px solid var(--glass-border);border-left:4px solid ${col};border-radius:10px;padding:9px;cursor:pointer;">
-                <div style="font-weight:900;font-size:0.92rem;">${s.name}</div>
-                <div style="font-size:0.65rem;color:var(--text-sub);margin-top:1px;">${s.en || ''}</div>
-            </div>`;
+    renderList() {
+        const q = (document.getElementById('picker-search-input').value || '').trim().toLowerCase();
+        const body = document.getElementById('picker-list-body');
+        if (!body) return;
+        const codes = Object.keys(MTR_STATIONS).filter(c => {
+            const s = MTR_STATIONS[c];
+            return !q || c.toLowerCase().includes(q) || s.name.includes(q) || s.en.toLowerCase().includes(q);
+        });
+        body.innerHTML = codes.map(c => {
+            const s = MTR_STATIONS[c];
+            const lines = getStationLines(c);
+            const color = (MTR_LINES[lines[0]] && MTR_LINES[lines[0]].color) || '#38BDF8';
+            return `<button class="hub-station-card" style="text-align:left;border-left:3px solid ${color};" onclick="AuraCockpit.setStation('${this.role}','${c}');AuraPicker.close();">
+                <div style="font-size:0.86rem;font-weight:900;">${s.name}</div>
+                <div style="font-size:0.65rem;color:var(--text-sub);">${c} • ${s.en}</div>
+            </button>`;
         }).join('');
-    },
-    pick(staId) {
-        this.close();
-        if (this.mode === 'pin') {
-            AuraDashboard.addStationMonitor(staId);
-        } else {
-            AuraCockpit.focusSlot(this.mode);
-            AuraCockpit.onStationPicked(staId);
-        }
     }
 };
 
-// 6. Tab 2: Station Hologram Hub (Clean Grid + Centered Spatial Card Modal)
+/* =========================================================
+   VIEW 2: STATION HOLOGRAM HUB + CENTERED MODAL
+   ========================================================= */
 const AuraHub = {
-    lineFilter: 'ALL',
-    query: '',
-    currentSta: 'CEN',
-    currentModalTab: 'pids',
-
+    activeLine: 'ALL',
+    currentHoloSta: null,
+    currentHoloTab: 'pids',
     init() {
-        this.renderLinePills();
+        this.renderLineChips();
         this.renderGrid();
     },
-    renderLinePills() {
-        const vis = MtrData.lines.filter(l => !l.isBranch);
-        let h = `<span onclick="AuraHub.setLine('ALL')" style="padding:5px 12px;border-radius:14px;font-size:0.75rem;font-weight:800;cursor:pointer;white-space:nowrap;background:${this.lineFilter==='ALL'?'var(--aura-blue)':'var(--bento-bg)'};color:${this.lineFilter==='ALL'?'#fff':'var(--text-main)'};border:1px solid var(--glass-border);">全部車站</span>`;
-        h += vis.map(l => `<span onclick="AuraHub.setLine('${l.id}')" style="padding:5px 12px;border-radius:14px;font-size:0.75rem;font-weight:800;cursor:pointer;white-space:nowrap;background:${l.color};opacity:${this.lineFilter===l.id?1:0.5};color:#fff;">${l.name}</span>`).join('');
-        document.getElementById('hub-line-pills').innerHTML = h;
+    renderLineChips() {
+        const host = document.getElementById('hub-line-chips');
+        if (!host) return;
+        const mainLines = Object.values(MTR_LINES).filter(l => !l.base);
+        const total = Object.keys(MTR_STATIONS).length;
+        host.innerHTML = `<button class="hub-chip ${this.activeLine==='ALL'?'active':''}" onclick="AuraHub.setLine('ALL')">全部 (${total})</button>` +
+            mainLines.map(l => `<button class="hub-chip ${this.activeLine===l.id?'active':''}" style="${this.activeLine===l.id?`background:${l.color};border-color:transparent;color:#fff;`:''}" onclick="AuraHub.setLine('${l.id}')">${l.name}</button>`).join('');
     },
-    setLine(lid) {
-        this.lineFilter = lid;
-        this.renderLinePills();
-        this.renderGrid();
-    },
-    onSearch(val) {
-        this.query = (val || '').trim().toLowerCase();
+    setLine(id) {
+        this.activeLine = id;
+        this.renderLineChips();
         this.renderGrid();
     },
     renderGrid() {
-        let codes = Object.keys(MtrData.stations);
-        if (this.lineFilter !== 'ALL') {
-            const l = MtrData.lines.find(x => x.id === this.lineFilter);
-            codes = l ? (l.searchPath || l.path) : codes;
-        }
-        if (this.query) {
-            codes = codes.filter(c => c.toLowerCase().includes(this.query) || MtrData.stations[c].name.includes(this.query) || (MtrData.stations[c].en || '').toLowerCase().includes(this.query));
-        }
-        document.getElementById('hub-bento-grid').innerHTML = codes.map(c => {
-            const s = MtrData.stations[c];
-            const ls = getStationLines(c);
-            const tags = ls.map(l => `<span class="hub-line-tag" style="background:${l.color};">${l.name.replace('綫','')}</span>`).join('');
-            return `<div class="hub-station-card" onclick="AuraHub.openHologram('${c}','pids')">
-                <div>
-                    <div class="hub-sta-zh">${s.name}</div>
-                    <div class="hub-sta-en">${s.en || ''}</div>
+        const q = (document.getElementById('hub-search-box')?.value || '').trim().toLowerCase();
+        const codes = Object.keys(MTR_STATIONS).filter(c => {
+            const s = MTR_STATIONS[c];
+            const lineMatch = this.activeLine === 'ALL' || getStationLines(c).includes(this.activeLine);
+            const textMatch = !q || c.toLowerCase().includes(q) || s.name.includes(q) || s.en.toLowerCase().includes(q);
+            return lineMatch && textMatch;
+        });
+        document.getElementById('hub-bento-grid').innerHTML = codes.map((c, idx) => {
+            const s = MTR_STATIONS[c];
+            const lines = getStationLines(c);
+            const badges = lines.map(lid => `<span style="font-size:0.6rem;font-weight:800;padding:2px 6px;border-radius:5px;background:${MTR_LINES[lid].color};color:#fff;">${MTR_LINES[lid].name.replace('綫','')}</span>`).join('');
+            const facs = `${s.wc?'🚻':''}${s.bf?'🍼':''}${s.bfree?'♿':''}`;
+            return `<div class="hub-station-card anim-stagger" style="--i:${Math.min(idx, 12)};" onclick="AuraHub.openHologram('${c}','pids')">
+                <div class="hub-sta-top">
+                    <span class="hub-sta-zh">${s.name}</span>
+                    <span class="hub-sta-code">${c}</span>
                 </div>
-                <div class="hub-line-dots">${tags}</div>
+                <div class="hub-sta-en">${s.en}</div>
+                <div class="hub-badges-row">
+                    <div style="display:flex;gap:3px;flex-wrap:wrap;">${badges}</div>
+                    <span style="font-size:0.7rem;">${facs}</span>
+                </div>
             </div>`;
         }).join('');
     },
-    async openHologram(staId, tab) {
-        this.currentSta = staId;
-        this.currentModalTab = tab || 'pids';
-        const s = MtrData.stations[staId];
-        const ls = getStationLines(staId);
-        const primaryColor = ls[0] ? ls[0].color : '#0EA5E9';
-        const modal = document.getElementById('hologram-modal');
-        const sheet = document.getElementById('hologram-sheet-content');
+    async openHologram(code, tab) {
+        this.currentHoloSta = code;
+        this.currentHoloTab = tab || 'pids';
+        const st = MTR_STATIONS[code];
+        const lines = getStationLines(code);
+        const primaryLn = MTR_LINES[lines[0]] || { color: '#38BDF8', name: '港鐵' };
+
+        const modal = document.getElementById('station-hologram-modal');
+        const box = document.getElementById('hologram-modal-content');
         modal.classList.remove('hidden');
 
-        const lineBadges = ls.map(l => `<span style="background:${l.color};color:#fff;font-size:0.68rem;font-weight:800;padding:2px 8px;border-radius:6px;">${l.name}</span>`).join('');
-
-        const headerHtml = `
-            <div style="background:linear-gradient(135deg, ${primaryColor}33, rgba(15,23,42,0.4));border:1px solid ${primaryColor}55;border-radius:18px;padding:12px 14px;margin-bottom:8px;">
+        box.innerHTML = `
+            <div style="margin:-16px -16px 12px -16px;padding:14px 16px;background:linear-gradient(135deg,${primaryLn.color},rgba(15,23,42,0.92));color:#fff;">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                     <div>
-                        <div style="font-size:1.35rem;font-weight:900;">${s.name} <span style="font-size:0.82rem;color:var(--text-sub);font-weight:600;">${s.en}</span></div>
-                        <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;">${lineBadges}</div>
+                        <div style="font-size:1.25rem;font-weight:900;">${st.name} <span style="font-size:0.8rem;opacity:0.85;">${st.en} (${code})</span></div>
+                        <div style="font-size:0.72rem;margin-top:4px;opacity:0.92;">首班車 ${st.first} • 尾班車 ${st.last} • ${st.wc?'🚻 設洗手間':'無站內洗手間'}</div>
                     </div>
-                    <button class="pids-icon-btn" onclick="AuraHub.closeHologram()">✕</button>
-                </div>
-                <div style="display:flex;gap:12px;margin-top:10px;padding-top:8px;border-top:1px solid var(--glass-border);font-size:0.74rem;color:var(--text-sub);">
-                    <span>🌅 首車 <b>${s.first || '06:00'}</b></span>
-                    <span>🌙 尾車 <b>${s.last || '00:50'}</b></span>
-                    <span>${s.toilet ? '🚻 設洗手間' : '🚻 商場洗手間'}</span>
+                    <button class="pids-icon-btn" style="background:rgba(0,0,0,0.35);color:#fff;border-color:rgba(255,255,255,0.25);" onclick="AuraHub.closeHologram()">✕</button>
                 </div>
             </div>
-            <div style="display:flex;gap:6px;">
-                <button class="pids-icon-btn" style="flex:1;background:rgba(14,165,233,0.18);color:var(--aura-cyan);border-color:rgba(14,165,233,0.4);" onclick="AuraHub.closeHologram();AuraDashboard.addStationMonitor('${staId}')">📺 釘選看板</button>
-                <button class="pids-icon-btn" style="flex:1;" onclick="AuraHub.closeHologram();AuraCockpit.setExternal('${staId}','origin')">↗ 設為起點</button>
-                <button class="pids-icon-btn" style="flex:1;" onclick="AuraHub.closeHologram();AuraCockpit.setExternal('${staId}','dest')">↘ 設為終點</button>
+
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">
+                <button class="pids-icon-btn" style="padding:8px;background:var(--aura-blue);color:#fff;border:none;" onclick="AuraDashboard.pinStation('${code}')">📌 釘選看板</button>
+                <button class="pids-icon-btn" style="padding:8px;" onclick="AuraHub.closeHologram();AuraCockpit.setOriginAndGo('${code}')">↗ 設為起點</button>
+                <button class="pids-icon-btn" style="padding:8px;" onclick="AuraHub.closeHologram();AuraCockpit.setDestAndGo('${code}')">↘ 設為終點</button>
             </div>
-            <div class="holo-tab-bar">
-                <div class="holo-tab-btn ${this.currentModalTab==='pids'?'active':''}" onclick="AuraHub.openHologram('${staId}','pids')">📺 實時班次</div>
-                <div class="holo-tab-btn ${this.currentModalTab==='exits'?'active':''}" onclick="AuraHub.openHologram('${staId}','exits')">🚪 出口地標</div>
-                <div class="holo-tab-btn ${this.currentModalTab==='fares'?'active':''}" onclick="AuraHub.openHologram('${staId}','fares')">💳 車資速查</div>
+
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">
+                <button class="pids-icon-btn" style="padding:7px;${this.currentHoloTab==='pids'?'background:rgba(56,189,248,0.2);border-color:var(--aura-cyan);color:var(--aura-cyan);':''}" onclick="AuraHub.openHologram('${code}','pids')">📺 實時月台</button>
+                <button class="pids-icon-btn" style="padding:7px;${this.currentHoloTab==='exits'?'background:rgba(56,189,248,0.2);border-color:var(--aura-cyan);color:var(--aura-cyan);':''}" onclick="AuraHub.openHologram('${code}','exits')">🚪 出口設施</button>
+                <button class="pids-icon-btn" style="padding:7px;${this.currentHoloTab==='fares'?'background:rgba(56,189,248,0.2);border-color:var(--aura-cyan);color:var(--aura-cyan);':''}" onclick="AuraHub.openHologram('${code}','fares')">💳 常用車資</button>
             </div>
+
+            <div id="holo-pids-body" class="holo-tab-content-anim" style="flex:1;overflow-y:auto;"></div>
         `;
 
-        if (this.currentModalTab === 'exits') {
-            const exitsHtml = (s.exits || ['A: 主要出入口', 'B: 公共運輸交匯處']).map(e => {
-                const p = e.split(':');
-                return `<div style="padding:10px 12px;border-bottom:1px solid var(--glass-border);font-size:0.84rem;display:flex;gap:10px;align-items:center;">
-                    <span style="background:${primaryColor};color:#fff;font-weight:900;padding:2px 8px;border-radius:6px;font-size:0.75rem;">${p[0]}</span>
-                    <span style="font-weight:700;">${p.slice(1).join(':')}</span>
-                </div>`;
-            }).join('');
-
-            sheet.innerHTML = headerHtml + `
-                <div style="flex:1;overflow-y:auto;">
-                    <div style="background:var(--bento-bg);border-radius:14px;border:1px solid var(--glass-border);overflow:hidden;">${exitsHtml}</div>
-                </div>
-            `;
-            return;
-        }
-
-        if (this.currentModalTab === 'fares') {
-            const hubs = ['CEN', 'ADM', 'CAB', 'TST', 'MOK', 'KOT', 'TAW', 'FAN', 'TUM', 'LOW'].filter(h => h !== staId);
-            const rows = hubs.map(h => {
-                const rf = AuraCockpit.getRawFare(staId, h);
-                const oct = Number(rf.oct);
-                const sng = Number(rf.sng || oct);
-                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:1px solid var(--glass-border);cursor:pointer;" onclick="AuraHub.closeHologram();AuraCockpit.launchRoute('${staId}','${h}')">
-                    <span style="font-weight:800;font-size:0.9rem;">往 ${MtrData.stations[h].name} <span style="font-size:0.72rem;color:var(--text-sub);">(單程 $${sng.toFixed(1)})</span></span>
-                    <span style="font-size:1.02rem;font-weight:900;color:#10B981;">$${oct.toFixed(1)} ➔</span>
-                </div>`;
-            }).join('');
-
-            sheet.innerHTML = headerHtml + `
-                <div style="flex:1;overflow-y:auto;">
-                    <div style="background:var(--bento-bg);border-radius:14px;border:1px solid var(--glass-border);overflow:hidden;">${rows}</div>
-                </div>
-            `;
-            return;
-        }
-
-        // Default Tab: Clean Live PIDS
-        sheet.innerHTML = headerHtml + `<div id="holo-pids-body" style="flex:1;overflow-y:auto;"><div style="padding:20px;text-align:center;color:var(--text-sub);">正在同步月台班次...</div></div>`;
-        let pidsHtml = '';
-        for (const l of ls) {
-            const res = await fetchLiveMtrEta(l.id, staId);
-            const sched = res ? res.schedule : null;
-            const now = (res && res.sysTime) ? new Date(res.sysTime.replace(/-/g, '/')) : new Date();
-
-            const renderDirRows = (dirKey, label) => {
-                if (isTerminusForDir(l.id, staId, dirKey)) {
-                    return `<div style="padding:8px 12px;font-size:0.78rem;color:var(--text-sub);">${label}：終點落客月台</div>`;
-                }
-                const list = ((sched && sched[dirKey]) || [])
-                    .map(t => ({ ...t, dateObj: new Date(t.time.replace(/-/g, '/')) }))
-                    .sort((a, b) => a.dateObj - b.dateObj)
-                    .slice(0, 2);
-                if (list.length === 0) return '';
-                return list.map(t => {
-                    const m = calcEtaMin(t, now);
-                    const dName = MtrData.stations[t.dest] ? MtrData.stations[t.dest].name : t.dest;
-                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06);font-size:0.86rem;">
-                        <span><b>往 ${dName}</b> <span style="font-size:0.72rem;color:#94A3B8;margin-left:6px;">${t.plat}號月台</span></span>
-                        <span style="font-weight:900;color:#34D399;font-size:0.95rem;">${m === 0 ? '即將到站' : m + ' min'}</span>
+        const body = document.getElementById('holo-pids-body');
+        if (this.currentHoloTab === 'pids') {
+            body.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-sub);font-size:0.82rem;">正在同步 ${st.name}站實時列車資料...</div>`;
+            const parts = await Promise.all(lines.map(async lid => {
+                const ln = MTR_LINES[lid];
+                const res = await fetchLiveMtrSchedule(lid, code);
+                const rows = [...(res.data.UP || []).slice(0, 2), ...(res.data.DOWN || []).slice(0, 2)];
+                const rowsHtml = rows.length ? rows.map(r => {
+                    const dn = (MTR_STATIONS[r.dest] && MTR_STATIONS[r.dest].name) || r.dest;
+                    const t = parseInt(r.ttnt, 10) === 0 ? '<span style="color:var(--aura-amber);font-weight:900;">即將到站</span>' : `<span style="color:var(--aura-cyan);font-weight:900;">${r.ttnt} min</span>`;
+                    return `<div style="display:flex;justify-content:space-between;padding:7px 10px;border-top:1px solid var(--glass-border);font-size:0.78rem;">
+                        <span>往 <b>${dn}</b> <span style="color:var(--text-sub);">月台 ${r.plat || '-'}</span></span>
+                        ${t}
                     </div>`;
-                }).join('');
-            };
-
-            pidsHtml += `<div style="background:var(--pids-pane);color:#F8FAFC;border-radius:14px;overflow:hidden;margin-bottom:8px;border:1px solid var(--glass-border);">
-                <div style="background:${l.color};padding:6px 12px;font-size:0.78rem;font-weight:900;color:#fff;display:flex;justify-content:space-between;">
-                    <span>${l.name}</span>
-                    <span>LIVE</span>
+                }).join('') : `<div style="padding:10px;font-size:0.76rem;color:var(--text-sub);">暫無即時班次</div>`;
+                return `<div style="border:1px solid var(--glass-border);border-radius:14px;overflow:hidden;margin-bottom:9px;">
+                    <div style="background:${ln.color};color:#fff;padding:6px 10px;font-size:0.76rem;font-weight:800;display:flex;justify-content:space-between;">
+                        <span>${ln.name} (${ln.en})</span>
+                        <span>${res.live ? 'LIVE PIDS' : '推算班次'}</span>
+                    </div>
+                    ${rowsHtml}
+                </div>`;
+            }));
+            body.innerHTML = parts.join('');
+        } else if (this.currentHoloTab === 'exits') {
+            body.innerHTML = `
+                <div style="padding:10px;border-radius:14px;background:var(--chip-inactive-bg);margin-bottom:10px;font-size:0.78rem;display:flex;gap:12px;">
+                    <span>${st.wc ? '✅ 站內洗手間' : '❌ 無洗手間'}</span>
+                    <span>${st.bf ? '✅ 育嬰室' : '❌ 無育嬰室'}</span>
+                    <span>✅ 無障礙升降機</span>
                 </div>
-                ${renderDirRows('UP', '上行')}
-                ${renderDirRows('DOWN', '下行')}
-            </div>`;
+                ${(st.exits || []).map(ex => `<div style="padding:9px 11px;border-radius:12px;border:1px solid var(--glass-border);margin-bottom:7px;font-size:0.8rem;font-weight:700;">🚪 ${ex}</div>`).join('')}
+            `;
+        } else {
+            const hubs = ['CEN', 'ADM', 'MOK', 'KOT', 'TAW', 'AIR'].filter(h => h !== code);
+            body.innerHTML = hubs.map(h => {
+                const r = AuraCockpit.runStateDijkstra(code, h, 'fastest');
+                return r ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:12px;border:1px solid var(--glass-border);margin-bottom:7px;cursor:pointer;" onclick="AuraHub.closeHologram();AuraCockpit.quickPlan('${code}','${h}')">
+                    <div>
+                        <div style="font-size:0.82rem;font-weight:800;">➔ 往 ${MTR_STATIONS[h].name}站</div>
+                        <div style="font-size:0.68rem;color:var(--text-sub);">約 ${r.totalMin} 分鐘 • ${r.viaLabel}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.9rem;font-weight:900;color:#10B981;">$${r.fare.oct.toFixed(1)}</div>
+                        <div style="font-size:0.64rem;color:var(--text-sub);">八達通</div>
+                    </div>
+                </div>` : '';
+            }).join('');
         }
-        const bodyEl = document.getElementById('holo-pids-body');
-        if (bodyEl) bodyEl.innerHTML = pidsHtml;
     },
     closeHologram() {
-        document.getElementById('hologram-modal').classList.add('hidden');
+        document.getElementById('station-hologram-modal').classList.add('hidden');
     }
 };
 
-// 7. Tab 3: Network Pulse
+/* =========================================================
+   VIEW 3: NETWORK PULSE & HKO WEATHER + DRILL MODE
+   ========================================================= */
 const AuraPulse = {
-    drillMode: false,
-    lines: [
-        { id: 'TWL', name: '荃灣綫', color: '#e2231a' },
-        { id: 'KTL', name: '觀塘綫', color: '#00af41' },
-        { id: 'ISL', name: '港島綫', color: '#0071ce' },
-        { id: 'TKO', name: '將軍澳綫', color: '#8d3685' },
-        { id: 'EAL', name: '東鐵綫', color: '#53b7e8' },
-        { id: 'TML', name: '屯馬綫', color: '#9a3820' },
-        { id: 'TCL', name: '東涌綫', color: '#f38b00' },
-        { id: 'AEL', name: '機場快綫', color: '#00838f' },
-        { id: 'DRL', name: '迪士尼綫', color: '#f550a1' },
-        { id: 'SIL', name: '南港島綫', color: '#b6bd00' }
-    ],
+    lines: Object.values(MTR_LINES).filter(l => !l.base),
+    delayedSet: new Set(),
+    drillActive: false,
+    tempText: '24°C',
     init() {
         this.refresh(false);
     },
-    toggleDrill() {
-        this.drillMode = !this.drillMode;
-        const btn = document.getElementById('btn-drill-toggle');
-        if (btn) btn.innerText = this.drillMode ? '✅ 結束演練' : '🚨 事故演練';
-        this.refresh(false);
-        AuraToast.show(this.drillMode ? '🚨 已開啟事故應變演練' : '✅ 已恢復全網正常狀態');
-    },
-    async refresh(showFeedback) {
-        if (showFeedback) AuraToast.show('↻ 正在同步全網車務...');
-        let temp = 26;
+    async fetchWeather() {
         try {
-            const r = await fetchWithTimeout('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc', { timeout: 2800 });
-            if (r.ok) {
-                const j = await r.json();
-                if (j.temperature && j.temperature.data && j.temperature.data[0]) temp = j.temperature.data[0].value;
+            const res = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc');
+            if (res.ok) {
+                const j = await res.json();
+                const tItem = (j.temperature && j.temperature.data && j.temperature.data.find(x => x.place === '香港天文台')) || (j.temperature && j.temperature.data && j.temperature.data[0]);
+                const hItem = j.humidity && j.humidity.data && j.humidity.data[0];
+                if (tItem) {
+                    this.tempText = `${tItem.value}°C`;
+                    const mainEl = document.getElementById('pulse-weather-main');
+                    const subEl = document.getElementById('pulse-weather-sub');
+                    if (mainEl) mainEl.innerText = `${tItem.value}°C • 濕度 ${hItem ? hItem.value + '%' : '--'}`;
+                    if (subEl) subEl.innerText = `${tItem.place}實時觀測 • ${j.warningMessage && j.warningMessage.length ? j.warningMessage[0] : '天氣穩定，適合鐵路出行'}`;
+                }
             }
-        } catch (e) {}
-
-        const tEl = document.getElementById('pulse-temp-val');
-        const dEl = document.getElementById('pulse-weather-desc');
-        const pill = document.getElementById('dynamic-island-pill');
-        const pillTxt = document.getElementById('island-status-text');
-
-        if (tEl) tEl.innerText = `${temp}°C`;
-        if (this.drillMode) {
-            if (dEl) dEl.innerHTML = '<span style="color:#F43F5E;font-weight:800;">⚠️ 演練：觀塘綫/東鐵綫延誤</span>';
-            if (pill) pill.classList.add('alert');
-            if (pillTxt) pillTxt.innerText = `⚠️ 事故演習 • ${temp}°C`;
+        } catch(e) {}
+        this.updateIsland();
+    },
+    updateIsland() {
+        const pill = document.getElementById('aura-island-pill');
+        const txt = document.getElementById('island-status-txt');
+        const count = this.delayedSet.size;
+        if (pill) pill.classList.toggle('alert', count > 0);
+        if (txt) txt.innerText = count > 0 ? `${count} 條路綫延誤 • ${this.tempText}` : `全網正常 • ${this.tempText}`;
+    },
+    toggleDrill() {
+        this.drillActive = !this.drillActive;
+        if (this.drillActive) {
+            this.delayedSet.add('KTL');
+            this.delayedSet.add('EAL');
+            AuraToast.show('🚨 已啟動延誤演習：觀塘綫 & 東鐵綫');
         } else {
-            if (dEl) dEl.innerText = '全網鐵路及露天段正常';
-            if (pill) pill.classList.remove('alert');
-            if (pillTxt) pillTxt.innerText = `全網正常 • ${temp}°C`;
+            this.delayedSet.clear();
+            AuraToast.show('✅ 已結束延誤演習，全網恢復正常');
         }
-
+        const btn = document.getElementById('pulse-drill-btn');
+        if (btn) btn.innerText = this.drillActive ? '✅ 恢復正常' : '🚨 延誤演習';
+        this.updateIsland();
+        this.renderGrid();
+    },
+    toggleLineDelay(id) {
+        if (this.delayedSet.has(id)) this.delayedSet.delete(id);
+        else this.delayedSet.add(id);
+        this.updateIsland();
+        this.renderGrid();
+    },
+    renderGrid() {
         const grid = document.getElementById('pulse-lines-grid');
         if (!grid) return;
-        grid.innerHTML = this.lines.map(l => {
-            const det = LINE_DETAILS[l.id] || {};
-            const isDel = this.drillMode && (l.id === 'KTL' || l.id === 'EAL');
-            return `<div class="pulse-line-bento ${isDel?'delayed':''}" style="border-left:4px solid ${l.color};" onclick="this.querySelector('.alt-box').classList.toggle('hidden')">
+        grid.innerHTML = this.lines.map((l, idx) => {
+            const isDel = this.delayedSet.has(l.id);
+            return `<div class="pulse-line-bento anim-stagger ${isDel?'delayed':''}" style="--i:${idx};border-left:4px solid ${l.color};" onclick="AuraPulse.toggleLineDelay('${l.id}')">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <span style="font-weight:900;font-size:0.98rem;">${l.name}</span>
-                    <span style="font-size:0.74rem;font-weight:800;color:${isDel?'#F43F5E':'#10B981'};">${isDel?'⚠️ 延誤':'● 正常'}</span>
+                    <div>
+                        <div style="font-size:0.9rem;font-weight:900;">${l.name} <span style="font-size:0.68rem;color:var(--text-sub);font-weight:600;">${l.en}</span></div>
+                        <div style="font-size:0.68rem;color:var(--text-sub);margin-top:2px;">${l.stations.length} 個車站 • ${l.cars} 卡編組</div>
+                    </div>
+                    <span style="font-size:0.72rem;font-weight:800;padding:4px 9px;border-radius:999px;background:${isDel?'rgba(244,63,94,0.2)':'rgba(16,185,129,0.16)'};color:${isDel?'#FB7185':'#34D399'};">${isDel ? '⚠️ 預計額外 +12 分鐘' : '● 服務正常'}</span>
                 </div>
-                <div style="font-size:0.72rem;color:var(--text-sub);margin-top:3px;">繁忙每 ${det.peak || '2.5 分鐘'}一班</div>
-                <div class="alt-box ${isDel?'':'hidden'}" style="margin-top:7px;padding-top:7px;border-top:1px solid var(--glass-border);font-size:0.72rem;color:var(--aura-cyan);line-height:1.4;">
-                    <b>🚌 替代巴士：</b>${det.altTransport}
+                <div class="alt-box drawer-anim ${isDel?'':'hidden'}">
+                    <b>🚨 建議替代路綫：</b>系統已偵測 ${l.name} 班次受阻，建議改乘屯馬綫或前往路綫導航艙切換「最少轉乘 / 同月台優先」避開擠塞路段。
                 </div>
             </div>`;
         }).join('');
+    },
+    refresh(showFeedback) {
+        if (showFeedback) {
+            AuraToast.show('↻ 正在同步全網車務...');
+            const ic = document.getElementById('pulse-refresh-icon');
+            if (ic) { ic.classList.remove('spinning-icon'); void ic.offsetWidth; ic.classList.add('spinning-icon'); }
+        }
+        this.fetchWeather();
+        this.renderGrid();
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+/* =========================================================
+   BOOT SEQUENCE
+   ========================================================= */
+function startHktClock() {
+    const el = document.getElementById('aura-hkt-clock');
+    const tick = () => {
+        if (!el) return;
+        const d = new Date();
+        const hkt = new Date(d.getTime() + (d.getTimezoneOffset() + 480) * 60000);
+        el.innerText = 'HKT ' + hkt.toTimeString().slice(0, 8);
+    };
+    tick();
+    setInterval(tick, 1000);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
     AuraTheme.init();
+    startHktClock();
     AuraDashboard.init();
     AuraCockpit.init();
     AuraHub.init();
     AuraPulse.init();
-    setTimeout(() => {
-        AuraCockpit.launchRoute('KOB', 'FAN');
-        AuraNav.switchTab(0);
-    }, 220);
+    // Try loading mtr_fares.json only when running inside native Capacitor APK
+    if (window.Capacitor && typeof window.fetch === 'function') {
+        window.fetch('./' + 'mtr_fares.json').then(r => r.ok ? r.json() : null).then(d => {
+            if (d) window.MTR_FARES_TABLE = d;
+        }).catch(() => {});
+    }
 });
